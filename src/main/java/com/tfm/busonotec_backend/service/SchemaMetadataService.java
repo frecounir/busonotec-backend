@@ -1,6 +1,8 @@
 package com.tfm.busonotec_backend.service;
 
 import com.tfm.busonotec_backend.dto.ColumnResponse;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 
@@ -13,6 +15,7 @@ import java.util.List;
 @Service
 public class SchemaMetadataService {
 
+    private static final Logger log = LoggerFactory.getLogger(SchemaMetadataService.class);
     private final JdbcTemplate jdbc;
 
     public SchemaMetadataService(JdbcTemplate jdbc) {
@@ -20,10 +23,11 @@ public class SchemaMetadataService {
     }
 
     /**
-     * List all tables in the public schema.
+     * List all user-created tables in the public schema only (filter system tables).
      */
     public List<String> listTables() {
-        String sql = "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'";
+        String sql = "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' AND table_type = 'BASE TABLE' AND table_name NOT LIKE 'pg_%' AND table_name NOT LIKE 'sql_%'";
+        log.info("Listing user tables with filtered query");
         return jdbc.queryForList(sql, String.class);
     }
 
@@ -43,8 +47,8 @@ public class SchemaMetadataService {
         if (name == null || name.isBlank()) {
             throw new IllegalArgumentException("Table name must be provided");
         }
-        // Allow only alphanumeric and underscore to prevent injection and unusual names
-        if (!name.matches("^[a-zA-Z0-9_]+$")) {
+        // Require names to start with a letter and contain only alphanumeric/underscore
+        if (!name.matches("^[a-zA-Z][a-zA-Z0-9_]{0,62}$")) {
             throw new IllegalArgumentException("Invalid table name");
         }
         // TODO: consider limiting length or checking against known tables for stricter validation

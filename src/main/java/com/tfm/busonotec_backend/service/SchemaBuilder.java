@@ -2,21 +2,31 @@ package com.tfm.busonotec_backend.service;
 
 import com.tfm.busonotec_backend.domain.EntityModel;
 import com.tfm.busonotec_backend.domain.FieldModel;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
-import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 /*
  Build safe CREATE TABLE statements from validated models.
-*/
+ */
 @Service
 public class SchemaBuilder {
+  private static final Logger log = LoggerFactory.getLogger(SchemaBuilder.class);
 
-  public List<String> buildCreateStatements(List<EntityModel> entities) {
-    List<String> statements = new ArrayList<>();
+  /**
+   * Returns a map of entityName -> CREATE TABLE statement. Entity names are the domain-provided
+   * identifiers (unquoted). SQL builder will quote identifiers defensively.
+   */
+  public Map<String, String> buildCreateStatements(List<EntityModel> entities) {
+    Map<String, String> statements = new LinkedHashMap<>();
     for (EntityModel e : entities) {
-      statements.add(createTableFor(e));
+      String sql = createTableFor(e);
+      statements.put(e.getName(), sql);
+      log.info("Built CREATE TABLE for {}", e.getName());
     }
     return statements;
   }
@@ -44,7 +54,8 @@ public class SchemaBuilder {
   }
 
   private String mapType(String logical) {
-    return switch (logical) {
+    if (logical == null) return "TEXT";
+    return switch (logical.toUpperCase()) {
       case "STRING" -> "VARCHAR(255)";
       case "INTEGER" -> "INTEGER";
       case "BOOLEAN" -> "BOOLEAN";
@@ -56,7 +67,7 @@ public class SchemaBuilder {
   }
 
   private String sanitizeIdentifier(String id) {
-    // identifier already validated by ModelValidator; defensively quote if needed
+    // identifier already validated by ModelValidator; defensively quote and lower-case
     return "\"" + id.toLowerCase() + "\"";
   }
 }

@@ -23,7 +23,7 @@ import java.util.stream.Collectors;
  POST /api/schema -> create tables
  GET /api/data/{entity} -> list rows
  POST /api/data/{entity} -> insert a row
-*/
+ */
 @RestController
 @RequestMapping("/api")
 public class GenericDataController {
@@ -55,8 +55,8 @@ public class GenericDataController {
   })
   public ResponseEntity<?> createSchema(@RequestBody SchemaRequest request) {
     validator.validateEntities(request.getEntities());
-    List<String> sql = builder.buildCreateStatements(request.getEntities());
-    schemaService.executeStatements(sql);
+    Map<String, String> sqlMap = builder.buildCreateStatements(request.getEntities());
+    schemaService.executeStatements(sqlMap);
     List<String> created = request.getEntities().stream().map(EntityModel::getName).collect(Collectors.toList());
     return ResponseEntity.ok(Map.of(
         "created", created,
