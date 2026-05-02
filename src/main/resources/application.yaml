@@ -6,6 +6,3 @@ spring:
     username: "busonotec-user"
     password: "busonotec-pass"
     driver-class-name: org.postgresql.Driver
-  jpa:
-    hibernate:
-      ddl-auto: none

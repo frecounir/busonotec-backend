@@ -2,7 +2,7 @@ package com.tfm.busonotec_backend.controller;
 
 import com.tfm.busonotec_backend.domain.EntityModel;
 import com.tfm.busonotec_backend.dto.PromptRequest;
-import com.tfm.busonotec_backend.service.ModelValidator;
+import com.tfm.busonotec_backend.service.ModelValidationService;
 import com.tfm.busonotec_backend.service.ai.AIService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -18,9 +18,9 @@ import java.util.List;
 public class PromptController {
 
   private final AIService ai;
-  private final ModelValidator validator;
+  private final ModelValidationService validator;
 
-  public PromptController(AIService ai, ModelValidator validator) {
+  public PromptController(AIService ai, ModelValidationService validator) {
     this.ai = ai;
     this.validator = validator;
   }

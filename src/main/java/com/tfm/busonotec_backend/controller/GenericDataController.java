@@ -5,17 +5,17 @@ import com.tfm.busonotec_backend.dto.SchemaRequest;
 import com.tfm.busonotec_backend.service.DynamicSchemaService;
 import com.tfm.busonotec_backend.service.SchemaBuilder;
 import com.tfm.busonotec_backend.service.UIConfigService;
-import com.tfm.busonotec_backend.service.ModelValidator;
-import org.springframework.http.ResponseEntity;
-import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.web.bind.annotation.*;
+import com.tfm.busonotec_backend.service.ModelValidationService;
+import com.tfm.busonotec_backend.service.GenericDataService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
 
 import java.util.List;
 import java.util.Map;
-import java.util.ArrayList;
 import java.util.stream.Collectors;
 
 /*
@@ -28,22 +28,22 @@ import java.util.stream.Collectors;
 @RequestMapping("/api")
 public class GenericDataController {
 
-  private final ModelValidator validator;
+  private final ModelValidationService validator;
   private final SchemaBuilder builder;
   private final DynamicSchemaService schemaService;
   private final UIConfigService uiConfigService;
-  private final JdbcTemplate jdbc;
+  private final GenericDataService dataService;
 
-  public GenericDataController(ModelValidator validator,
+  public GenericDataController(ModelValidationService validator,
                                SchemaBuilder builder,
                                DynamicSchemaService schemaService,
                                UIConfigService uiConfigService,
-                               JdbcTemplate jdbc) {
+                               GenericDataService dataService) {
     this.validator = validator;
     this.builder = builder;
     this.schemaService = schemaService;
     this.uiConfigService = uiConfigService;
-    this.jdbc = jdbc;
+    this.dataService = dataService;
   }
 
   @PostMapping("/schema")
@@ -72,13 +72,12 @@ public class GenericDataController {
       @ApiResponse(responseCode = "500", description = "Server error")
   })
   public ResponseEntity<?> listData(@PathVariable String entity) {
-    if (!schemaService.entityExists(entity)) {
-      return ResponseEntity.badRequest().body(Map.of("error", "Unknown entity"));
+    try {
+      List<Map<String, Object>> rows = dataService.listData(entity);
+      return ResponseEntity.ok(rows);
+    } catch (IllegalArgumentException ex) {
+      return ResponseEntity.badRequest().body(Map.of("error", ex.getMessage()));
     }
-    // Basic SELECT - limit results. Field names are taken from DB driver.
-    String safe = "\"" + entity.toLowerCase() + "\"";
-    List<Map<String, Object>> rows = jdbc.queryForList("SELECT * FROM " + safe + " LIMIT 100");
-    return ResponseEntity.ok(rows);
   }
 
   @PostMapping("/data/{entity}")
@@ -89,23 +88,11 @@ public class GenericDataController {
       @ApiResponse(responseCode = "500", description = "Server error")
   })
   public ResponseEntity<?> createRow(@PathVariable String entity, @RequestBody Map<String, Object> payload) {
-    if (!schemaService.entityExists(entity)) {
-      return ResponseEntity.badRequest().body(Map.of("error", "Unknown entity"));
+    try {
+      dataService.insertRow(entity, payload);
+      return ResponseEntity.ok(Map.of("status", "ok"));
+    } catch (IllegalArgumentException ex) {
+      return ResponseEntity.badRequest().body(Map.of("error", ex.getMessage()));
     }
-    String table = "\"" + entity.toLowerCase() + "\"";
-    // Validate keys look like identifiers
-    for (String k : payload.keySet()) {
-      if (!k.matches("^[a-zA-Z][a-zA-Z0-9_]{0,62}$")) {
-        return ResponseEntity.badRequest().body(Map.of("error", "Invalid column name: " + k));
-      }
-    }
-    // Build insert with prepared params
-    List<String> keys = new ArrayList<>(payload.keySet());
-    String cols = keys.stream().map(s -> "\"" + s.toLowerCase() + "\"").collect(Collectors.joining(", "));
-    String placeholders = keys.stream().map(k -> "?").collect(Collectors.joining(", "));
-    Object[] values = keys.stream().map(payload::get).toArray();
-    String sql = "INSERT INTO " + table + " (" + cols + ") VALUES (" + placeholders + ")";
-    jdbc.update(sql, values);
-    return ResponseEntity.ok(Map.of("status", "ok"));
   }
 }
