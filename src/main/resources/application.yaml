@@ -2,7 +2,7 @@ spring:
   application:
     name: busonotec-backend
   datasource:
-    url: "jdbc:postgresql://localhost:5432/busonotec-db"
-    username: "busonotec-user"
-    password: "busonotec-pass"
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/busonotec-db}
+    username: ${SPRING_DATASOURCE_USERNAME:busonotec-user}
+    password: ${SPRING_DATASOURCE_PASSWORD:busonotec-pass}
     driver-class-name: org.postgresql.Driver

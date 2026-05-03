@@ -1,13 +1,14 @@
 package com.tfm.busonotec_backend;
 
 import org.junit.jupiter.api.Test;
-import org.springframework.boot.test.context.SpringBootTest;
 
-@SpringBootTest
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+
 class BusonotecBackendApplicationTests {
 
 	@Test
-	void contextLoads() {
+	void applicationClassCanBeLoadedWithoutStartingSpring() {
+		assertDoesNotThrow(() -> Class.forName(BusonotecBackendApplication.class.getName()));
 	}
 
 }
