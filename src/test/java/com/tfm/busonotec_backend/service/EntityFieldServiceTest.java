@@ -1,0 +1,151 @@
+package com.tfm.busonotec_backend.service;
+
+import com.tfm.busonotec_backend.dto.EntityFieldRequest;
+import com.tfm.busonotec_backend.dto.EntityFieldResponse;
+import com.tfm.busonotec_backend.support.InMemoryBusinessEntityRepository;
+import com.tfm.busonotec_backend.support.InMemoryEntityFieldRepository;
+import com.tfm.busonotec_backend.support.RecordingDynamicSchemaService;
+import com.tfm.busonotec_backend.support.RecordingDynamicSchemaService.AddedColumn;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
+
+import java.util.List;
+import java.util.UUID;
+import java.util.stream.Stream;
+
+import static com.tfm.busonotec_backend.support.TestFixtures.STUDENTS;
+import static com.tfm.busonotec_backend.support.TestFixtures.entityField;
+import static com.tfm.busonotec_backend.support.TestFixtures.entityFieldRequest;
+import static com.tfm.busonotec_backend.support.TestFixtures.studentsEntity;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+
+class EntityFieldServiceTest {
+  private InMemoryEntityFieldRepository fieldRepository;
+  private InMemoryBusinessEntityRepository entityRepository;
+  private RecordingDynamicSchemaService schemaService;
+  private EntityFieldService service;
+  private UUID entityId;
+
+  @BeforeEach
+  void setUp() {
+    fieldRepository = new InMemoryEntityFieldRepository();
+    entityRepository = new InMemoryBusinessEntityRepository();
+    schemaService = new RecordingDynamicSchemaService();
+    service = new EntityFieldService(fieldRepository, entityRepository, schemaService);
+    entityId = UUID.randomUUID();
+    entityRepository.add(studentsEntity(entityId));
+  }
+
+  @Test
+  void createAddsPhysicalColumnAndPersistsFieldMetadata() {
+    EntityFieldResponse response = service.create(entityFieldRequest(entityId, "score", "number"));
+
+    assertEntityFieldResponse(response, entityId, "score", "number");
+    assertThat(schemaService.addedColumns())
+        .containsExactly(new AddedColumn(STUDENTS, "score", "number"));
+    assertThat(fieldRepository.savedFields()).singleElement().satisfies(saved -> {
+      assertThat(saved.getId()).isEqualTo(response.getId());
+      assertThat(saved.getName()).isEqualTo("score");
+    });
+  }
+
+  @ParameterizedTest
+  @MethodSource("invalidFieldNames")
+  void createRejectsInvalidNames(String fieldName) {
+    IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
+        () -> service.create(new EntityFieldRequest(entityId, fieldName, "string")));
+
+    assertMessageContainsAnyOf(exception, "Field name must be provided", "Invalid field name", "reserved");
+    assertCreateHadNoSideEffects();
+  }
+
+  @ParameterizedTest
+  @MethodSource("invalidFieldTypes")
+  void createRejectsInvalidTypes(String fieldType) {
+    IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
+        () -> service.create(entityFieldRequest(entityId, "email", fieldType)));
+
+    assertMessageContainsAnyOf(exception, "Field type must be provided", "Unsupported field type");
+    assertCreateHadNoSideEffects();
+  }
+
+  @Test
+  void createRejectsMissingBusinessEntity() {
+    UUID unknownId = UUID.randomUUID();
+
+    IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
+        () -> service.create(entityFieldRequest(unknownId, "email", "string")));
+
+    assertThat(exception).hasMessage("BusinessEntity not found: " + unknownId);
+    assertCreateHadNoSideEffects();
+  }
+
+  @Test
+  void createRejectsNullBusinessEntityId() {
+    IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
+        () -> service.create(entityFieldRequest(null, "email", "string")));
+
+    assertThat(exception).hasMessage("BusinessEntity not found: null");
+  }
+
+  @Test
+  void createRejectsDuplicateFieldNamesForEntity() {
+    fieldRepository.markExisting(entityId, "email");
+
+    IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
+        () -> service.create(entityFieldRequest(entityId, "email", "string")));
+
+    assertThat(exception).hasMessage("Field with name already exists for entity: email");
+    assertCreateHadNoSideEffects();
+  }
+
+  @Test
+  void listByEntityReturnsFieldsOrderedByRepository() {
+    UUID alphaId = UUID.randomUUID();
+    UUID betaId = UUID.randomUUID();
+    fieldRepository.add(entityField(betaId, entityId, "beta", "boolean"));
+    fieldRepository.add(entityField(alphaId, entityId, "alpha", "string"));
+
+    List<EntityFieldResponse> responses = service.listByEntity(entityId);
+
+    assertThat(responses)
+        .extracting(EntityFieldResponse::getName)
+        .containsExactly("alpha", "beta");
+    assertThat(responses)
+        .extracting(EntityFieldResponse::getId)
+        .containsExactly(alphaId, betaId);
+  }
+
+  static Stream<String> invalidFieldNames() {
+    return Stream.of(null, "", " ", "1email", "email-address", "field.name", "id", "ID", "a".repeat(64));
+  }
+
+  static Stream<String> invalidFieldTypes() {
+    return Stream.of(null, "", " ", "json", "timestamp");
+  }
+
+  private void assertEntityFieldResponse(
+      EntityFieldResponse response,
+      UUID businessEntityId,
+      String name,
+      String type
+  ) {
+    assertThat(response.getId()).isNotNull();
+    assertThat(response.getBusinessEntityId()).isEqualTo(businessEntityId);
+    assertThat(response.getName()).isEqualTo(name);
+    assertThat(response.getType()).isEqualTo(type);
+  }
+
+  private void assertCreateHadNoSideEffects() {
+    assertThat(schemaService.hasNoAddedColumns()).isTrue();
+    assertThat(fieldRepository.hasNoSavedFields()).isTrue();
+  }
+
+  private void assertMessageContainsAnyOf(Exception exception, String... expectedMessages) {
+    assertThat(expectedMessages)
+        .anySatisfy(expectedMessage -> assertThat(exception.getMessage()).contains(expectedMessage));
+  }
+}
