@@ -1,13 +1,10 @@
 package com.tfm.busonotec_backend.repository;
 
 import com.tfm.busonotec_backend.domain.BusinessEntity;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Repository;
 
-import jakarta.annotation.PostConstruct;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.List;
@@ -16,17 +13,9 @@ import java.util.UUID;
 
 @Repository
 public class BusinessEntityRepository {
-  private static final Logger log = LoggerFactory.getLogger(BusinessEntityRepository.class);
   private final JdbcTemplate jdbc;
 
   public BusinessEntityRepository(JdbcTemplate jdbc) { this.jdbc = jdbc; }
-
-  @PostConstruct
-  public void ensureTable() {
-    String sql = "CREATE TABLE IF NOT EXISTS business_entities (id UUID PRIMARY KEY, name TEXT UNIQUE NOT NULL, description TEXT)";
-    jdbc.execute(sql);
-    log.info("Ensured metadata table business_entities exists");
-  }
 
   public void save(BusinessEntity e) {
     String sql = "INSERT INTO business_entities(id, name, description) VALUES (?, ?, ?)";
