@@ -43,8 +43,21 @@ public class BusinessEntityService {
   public List<BusinessEntityResponse> list() {
     List<BusinessEntity> list = repository.findAll();
     List<BusinessEntityResponse> out = new ArrayList<>();
-    for (BusinessEntity e : list) out.add(new BusinessEntityResponse(e.getId(), e.getName(), e.getDescription()));
+    for (BusinessEntity e : list) out.add(toResponse(e));
     return out;
+  }
+
+  public BusinessEntityResponse findById(UUID id) {
+    if (id == null) {
+      throw new IllegalArgumentException("Business entity id must be provided");
+    }
+    BusinessEntity entity = repository.findById(id)
+        .orElseThrow(() -> new IllegalArgumentException("Business entity not found: " + id));
+    return toResponse(entity);
+  }
+
+  private BusinessEntityResponse toResponse(BusinessEntity entity) {
+    return new BusinessEntityResponse(entity.getId(), entity.getName(), entity.getDescription());
   }
 
   private void validateName(String name) {

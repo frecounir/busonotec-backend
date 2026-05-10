@@ -15,14 +15,14 @@ public class EntityFieldController {
 
   public EntityFieldController(EntityFieldService service) { this.service = service; }
 
-  @PostMapping("/api/fields")
+  @PostMapping({"/api/entity-fields", "/api/fields"})
   public ResponseEntity<EntityFieldResponse> create(@RequestBody EntityFieldRequest req) {
     EntityFieldResponse res = service.create(req);
     return ResponseEntity.ok(res);
   }
 
-  @GetMapping("/api/entities/{id}/fields")
-  public ResponseEntity<List<EntityFieldResponse>> listByEntity(@PathVariable UUID id) {
-    return ResponseEntity.ok(service.listByEntity(id));
+  @GetMapping({"/api/entity-fields/{businessEntityId}", "/api/entities/{businessEntityId}/fields"})
+  public ResponseEntity<List<EntityFieldResponse>> listByEntity(@PathVariable("businessEntityId") UUID businessEntityId) {
+    return ResponseEntity.ok(service.listByEntity(businessEntityId));
   }
 }

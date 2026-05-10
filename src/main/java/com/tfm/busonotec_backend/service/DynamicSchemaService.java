@@ -11,10 +11,12 @@ import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.Set;
 import java.util.Collections;
+import java.util.regex.Pattern;
 
 @Service
 public class DynamicSchemaService {
   private static final Logger log = LoggerFactory.getLogger(DynamicSchemaService.class);
+  private static final Pattern NAME = Pattern.compile("^[a-zA-Z][a-zA-Z0-9_]{0,62}$");
   private final JdbcTemplate jdbc;
   private final Set<String> createdEntities = ConcurrentHashMap.newKeySet();
 
@@ -35,7 +37,31 @@ public class DynamicSchemaService {
   }
 
   public boolean entityExists(String entityName) {
-    return createdEntities.contains(entityName.toLowerCase());
+    if (entityName == null || !NAME.matcher(entityName).matches()) {
+      return false;
+    }
+    if (createdEntities.contains(entityName.toLowerCase())) {
+      return true;
+    }
+    Integer count = jdbc.queryForObject(
+        "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public' AND table_type = 'BASE TABLE' AND table_name = ?",
+        Integer.class,
+        entityName.toLowerCase(Locale.ROOT)
+    );
+    return count != null && count > 0;
+  }
+
+  public void addColumn(String entityName, String fieldName, String logicalType) {
+    validateIdentifier(entityName, "entity name");
+    validateIdentifier(fieldName, "field name");
+    if (!entityExists(entityName)) {
+      throw new IllegalArgumentException("Physical table does not exist for entity: " + entityName);
+    }
+    String sql = "ALTER TABLE " + quote(entityName)
+        + " ADD COLUMN IF NOT EXISTS " + quote(fieldName)
+        + " " + mapColumnType(logicalType);
+    log.info("Adding column {}.{} with SQL: {}", entityName, fieldName, sql);
+    jdbc.execute(sql);
   }
 
   /** Validate SQL before execution. Only allow CREATE TABLE and INSERT INTO. */
@@ -57,4 +83,30 @@ public class DynamicSchemaService {
 
   // For testing/debug
   public Set<String> getCreatedEntities() { return Collections.unmodifiableSet(createdEntities); }
+
+  private void validateIdentifier(String value, String label) {
+    if (value == null || value.isBlank()) {
+      throw new IllegalArgumentException(label + " must be provided");
+    }
+    if (!NAME.matcher(value).matches()) {
+      throw new IllegalArgumentException("Invalid " + label + ": " + value);
+    }
+  }
+
+  private String quote(String identifier) {
+    return "\"" + identifier.toLowerCase(Locale.ROOT) + "\"";
+  }
+
+  private String mapColumnType(String logicalType) {
+    if (logicalType == null || logicalType.isBlank()) {
+      throw new IllegalArgumentException("Field type must be provided");
+    }
+    return switch (logicalType.toLowerCase(Locale.ROOT)) {
+      case "string" -> "VARCHAR(255)";
+      case "number" -> "NUMERIC";
+      case "boolean" -> "BOOLEAN";
+      case "date" -> "DATE";
+      default -> throw new IllegalArgumentException("Unsupported field type: " + logicalType);
+    };
+  }
 }

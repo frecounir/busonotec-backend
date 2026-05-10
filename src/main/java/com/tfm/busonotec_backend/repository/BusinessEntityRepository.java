@@ -45,13 +45,13 @@ public class BusinessEntityRepository {
 
   public Optional<BusinessEntity> findById(UUID id) {
     String sql = "SELECT id, name, description FROM business_entities WHERE id = ?";
-    List<BusinessEntity> res = jdbc.query(sql, new Object[]{id}, (rs, rn) -> new BusinessEntity(UUID.fromString(rs.getString("id")), rs.getString("name"), rs.getString("description")));
+    List<BusinessEntity> res = jdbc.query(sql, (rs, rn) -> new BusinessEntity(UUID.fromString(rs.getString("id")), rs.getString("name"), rs.getString("description")), id);
     return res.isEmpty() ? Optional.empty() : Optional.of(res.get(0));
   }
 
   public Optional<BusinessEntity> findByName(String name) {
     String sql = "SELECT id, name, description FROM business_entities WHERE name = ?";
-    List<BusinessEntity> res = jdbc.query(sql, new Object[]{name}, (rs, rn) -> new BusinessEntity(UUID.fromString(rs.getString("id")), rs.getString("name"), rs.getString("description")));
+    List<BusinessEntity> res = jdbc.query(sql, (rs, rn) -> new BusinessEntity(UUID.fromString(rs.getString("id")), rs.getString("name"), rs.getString("description")), name);
     return res.isEmpty() ? Optional.empty() : Optional.of(res.get(0));
   }
 

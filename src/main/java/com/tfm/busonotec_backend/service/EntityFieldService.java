@@ -1,5 +1,6 @@
 package com.tfm.busonotec_backend.service;
 
+import com.tfm.busonotec_backend.domain.BusinessEntity;
 import com.tfm.busonotec_backend.domain.EntityField;
 import com.tfm.busonotec_backend.dto.EntityFieldRequest;
 import com.tfm.busonotec_backend.dto.EntityFieldResponse;
@@ -8,9 +9,11 @@ import com.tfm.busonotec_backend.repository.EntityFieldRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 @Service
@@ -19,18 +22,23 @@ public class EntityFieldService {
   private static final String NAME_REGEX = "^[a-zA-Z][a-zA-Z0-9_]{0,62}$";
   private final EntityFieldRepository repository;
   private final BusinessEntityRepository entityRepository;
+  private final DynamicSchemaService dynamicSchemaService;
 
-  public EntityFieldService(EntityFieldRepository repository, BusinessEntityRepository entityRepository) {
+  public EntityFieldService(EntityFieldRepository repository,
+                            BusinessEntityRepository entityRepository,
+                            DynamicSchemaService dynamicSchemaService) {
     this.repository = repository;
     this.entityRepository = entityRepository;
+    this.dynamicSchemaService = dynamicSchemaService;
   }
 
+  @Transactional
   public EntityFieldResponse create(EntityFieldRequest req) {
     validateName(req.getName());
     validateType(req.getType());
-    // ensure parent exists
     UUID entityId = req.getBusinessEntityId();
-    if (entityId == null || entityRepository.findById(entityId).isEmpty()) {
+    Optional<BusinessEntity> entity = entityId == null ? Optional.empty() : entityRepository.findById(entityId);
+    if (entity.isEmpty()) {
       throw new IllegalArgumentException("BusinessEntity not found: " + entityId);
     }
     if (repository.existsByNameForEntity(entityId, req.getName())) {
@@ -38,6 +46,7 @@ public class EntityFieldService {
     }
     UUID id = UUID.randomUUID();
     EntityField f = new EntityField(id, req.getName(), req.getType(), entityId, null);
+    dynamicSchemaService.addColumn(entity.get().getName(), req.getName(), req.getType());
     repository.save(f);
     log.info("Created field {} for entity {}", req.getName(), entityId);
     return new EntityFieldResponse(id, entityId, req.getName(), req.getType());
@@ -60,6 +69,9 @@ public class EntityFieldService {
     if (!name.matches(NAME_REGEX)) {
       log.warn("Validation failed: invalid field name {}", name);
       throw new IllegalArgumentException("Invalid field name: " + name);
+    }
+    if ("id".equalsIgnoreCase(name)) {
+      throw new IllegalArgumentException("Field name 'id' is reserved");
     }
   }
 

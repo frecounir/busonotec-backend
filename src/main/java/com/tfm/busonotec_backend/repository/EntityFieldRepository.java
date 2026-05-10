@@ -1,14 +1,12 @@
 package com.tfm.busonotec_backend.repository;
 
 import com.tfm.busonotec_backend.domain.EntityField;
-import com.tfm.busonotec_backend.domain.FieldDetail;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 
 import jakarta.annotation.PostConstruct;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
@@ -33,15 +31,21 @@ public class EntityFieldRepository {
 
   public List<EntityField> findByBusinessEntityId(UUID businessEntityId) {
     String sql = "SELECT id, business_entity_id, name, type FROM entity_fields WHERE business_entity_id = ? ORDER BY name";
-    // pass UUID as string to avoid driver mismatches
-    return jdbc.query(sql, new Object[]{businessEntityId.toString()}, (rs, rn) ->
-        new EntityField(UUID.fromString(rs.getString("id")), rs.getString("name"), rs.getString("type"), UUID.fromString(rs.getString("business_entity_id")), null)
+    return jdbc.query(sql, (rs, rn) ->
+        new EntityField(
+            UUID.fromString(rs.getString("id")),
+            rs.getString("name"),
+            rs.getString("type"),
+            UUID.fromString(rs.getString("business_entity_id")),
+            null
+        ),
+        businessEntityId
     );
   }
 
   public boolean existsByNameForEntity(UUID businessEntityId, String name) {
     String sql = "SELECT COUNT(1) FROM entity_fields WHERE business_entity_id = ? AND name = ?";
-    Integer count = jdbc.queryForObject(sql, new Object[]{businessEntityId.toString(), name}, Integer.class);
+    Integer count = jdbc.queryForObject(sql, Integer.class, businessEntityId, name);
     return count != null && count > 0;
   }
 }
