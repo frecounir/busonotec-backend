@@ -54,6 +54,13 @@ class ApiIntegrationTest {
     assertThat(field.getName()).isEqualTo("score");
     assertThat(field.getType()).isEqualTo("number");
     assertThat(fieldsForEntity(entity)).containsExactly("score");
+
+    Map<String, Object> createdRecord = createRecord(entity, 95);
+
+    assertThat(recordsForEntity(entity)).singleElement().satisfies(record -> {
+      assertThat(record.get("id")).isEqualTo(createdRecord.get("id"));
+      assertThat(((Number) record.get("score")).intValue()).isEqualTo(95);
+    });
   }
 
   @Test
@@ -113,6 +120,23 @@ class ApiIntegrationTest {
 
     assertOk(response);
     return http.readTextValues(response, "name");
+  }
+
+  private List<Map<String, Object>> recordsForEntity(BusinessEntityResponse entity) throws Exception {
+    HttpResponse<String> response = http.get("/api/entities/" + entity.getId() + "/records");
+
+    assertOk(response);
+    return http.readRows(response);
+  }
+
+  private Map<String, Object> createRecord(BusinessEntityResponse entity, int score) throws Exception {
+    HttpResponse<String> response = http.postJson("/api/entities/" + entity.getId() + "/records", Map.of("score", score));
+
+    assertOk(response);
+    Map<String, Object> record = http.readRecord(response);
+    assertThat(record.get("id")).isNotNull();
+    assertThat(((Number) record.get("score")).intValue()).isEqualTo(score);
+    return record;
   }
 
   private void assertOk(HttpResponse<String> response) {

@@ -3,14 +3,17 @@ package com.tfm.busonotec_backend.support;
 import com.tfm.busonotec_backend.service.DynamicSchemaService;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 public final class RecordingDynamicSchemaService extends DynamicSchemaService {
   private final Map<String, String> statementsByEntity = new LinkedHashMap<>();
   private final List<AddedColumn> addedColumns = new ArrayList<>();
+  private final Set<String> existingEntities = new HashSet<>();
 
   public RecordingDynamicSchemaService() {
     super(null);
@@ -26,6 +29,15 @@ public final class RecordingDynamicSchemaService extends DynamicSchemaService {
   @Override
   public void addColumn(String entityName, String fieldName, String logicalType) {
     addedColumns.add(new AddedColumn(entityName, fieldName, logicalType));
+  }
+
+  @Override
+  public boolean entityExists(String entityName) {
+    return existingEntities.contains(entityName);
+  }
+
+  public void markEntityAsExisting(String entityName) {
+    existingEntities.add(entityName);
   }
 
   public Optional<String> statementFor(String entityName) {

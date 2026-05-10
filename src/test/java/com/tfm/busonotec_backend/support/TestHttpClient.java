@@ -1,6 +1,7 @@
 package com.tfm.busonotec_backend.support;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.io.IOException;
@@ -56,6 +57,16 @@ public final class TestHttpClient {
 
   public List<String> readTextValues(HttpResponse<String> response, String fieldName) throws JsonProcessingException {
     return objectMapper.readTree(response.body()).findValuesAsText(fieldName);
+  }
+
+  public List<Map<String, Object>> readRows(HttpResponse<String> response) throws JsonProcessingException {
+    return objectMapper.readValue(response.body(), new TypeReference<>() {
+    });
+  }
+
+  public Map<String, Object> readRecord(HttpResponse<String> response) throws JsonProcessingException {
+    return objectMapper.readValue(response.body(), new TypeReference<>() {
+    });
   }
 
   private HttpResponse<String> send(HttpRequest request) throws IOException, InterruptedException {

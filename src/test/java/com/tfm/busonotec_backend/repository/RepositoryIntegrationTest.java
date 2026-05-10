@@ -8,6 +8,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.jdbc.core.JdbcTemplate;
 
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import static com.tfm.busonotec_backend.support.H2TestDatabase.newJdbcTemplate;
@@ -15,11 +16,13 @@ import static com.tfm.busonotec_backend.support.H2TestDatabase.tableExists;
 import static com.tfm.busonotec_backend.support.TestFixtures.businessEntity;
 import static com.tfm.busonotec_backend.support.TestFixtures.entityField;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class RepositoryIntegrationTest {
   private JdbcTemplate jdbc;
   private BusinessEntityRepository businessEntityRepository;
   private EntityFieldRepository entityFieldRepository;
+  private BusinessRecordRepository businessRecordRepository;
 
   @BeforeEach
   void setUp() {
@@ -27,6 +30,7 @@ class RepositoryIntegrationTest {
     new DatabaseSeeder(jdbc).seed();
     businessEntityRepository = new BusinessEntityRepository(jdbc);
     entityFieldRepository = new EntityFieldRepository(jdbc);
+    businessRecordRepository = new BusinessRecordRepository(jdbc);
   }
 
   @Test
@@ -78,6 +82,74 @@ class RepositoryIntegrationTest {
     assertThat(entityFieldRepository.existsByNameForEntity(studentsId, "alpha")).isTrue();
     assertThat(entityFieldRepository.existsByNameForEntity(studentsId, "missing")).isFalse();
     assertThat(entityFieldRepository.existsByNameForEntity(UUID.randomUUID(), "alpha")).isFalse();
+  }
+
+  @Test
+  void businessRecordRepositoryReadsRowsFromPhysicalEntityTable() {
+    UUID firstId = UUID.fromString("00000000-0000-0000-0000-000000000001");
+    UUID secondId = UUID.fromString("00000000-0000-0000-0000-000000000002");
+    jdbc.execute("CREATE TABLE \"students\" (id UUID PRIMARY KEY, name VARCHAR(255), score NUMERIC)");
+    jdbc.update("INSERT INTO \"students\" (id, name, score) VALUES (?, ?, ?)", secondId, "Beta", 80);
+    jdbc.update("INSERT INTO \"students\" (id, name, score) VALUES (?, ?, ?)", firstId, "Alpha", 95);
+
+    List<Map<String, Object>> records = businessRecordRepository.findAllByEntityName("Students");
+
+    assertThat(records).hasSize(2);
+    assertThat(records).extracting(record -> record.get("id")).containsExactly(firstId, secondId);
+    assertThat(records).extracting(record -> record.get("name")).containsExactly("Alpha", "Beta");
+    assertThat(records).extracting(record -> ((Number) record.get("score")).intValue()).containsExactly(95, 80);
+  }
+
+  @Test
+  void businessRecordRepositoryCreatesRowsInPhysicalEntityTable() {
+    UUID recordId = UUID.fromString("00000000-0000-0000-0000-000000000010");
+    jdbc.execute("CREATE TABLE \"students\" (id UUID PRIMARY KEY, name VARCHAR(255), score NUMERIC)");
+
+    Map<String, Object> created = businessRecordRepository.create(
+        "Students",
+        recordId,
+        Map.of("name", "Ana", "score", 95)
+    );
+
+    assertThat(created).containsEntry("id", recordId)
+        .containsEntry("name", "Ana")
+        .containsEntry("score", 95);
+    assertThat(businessRecordRepository.findAllByEntityName("Students")).singleElement().satisfies(record -> {
+      assertThat(record.get("id")).isEqualTo(recordId);
+      assertThat(record.get("name")).isEqualTo("Ana");
+      assertThat(((Number) record.get("score")).intValue()).isEqualTo(95);
+    });
+  }
+
+  @Test
+  void businessRecordRepositoryCreatesRowsWithoutDynamicValues() {
+    UUID recordId = UUID.fromString("00000000-0000-0000-0000-000000000011");
+    jdbc.execute("CREATE TABLE \"students\" (id UUID PRIMARY KEY)");
+
+    Map<String, Object> created = businessRecordRepository.create("Students", recordId, null);
+
+    assertThat(created).containsOnlyKeys("id");
+    assertThat(businessRecordRepository.findAllByEntityName("Students")).singleElement()
+        .satisfies(record -> assertThat(record.get("id")).isEqualTo(recordId));
+  }
+
+  @Test
+  void businessRecordRepositoryRejectsInvalidEntityNames() {
+    assertThatThrownBy(() -> businessRecordRepository.findAllByEntityName(null))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessage("Entity name must be provided");
+    assertThatThrownBy(() -> businessRecordRepository.findAllByEntityName(" "))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessage("Entity name must be provided");
+    assertThatThrownBy(() -> businessRecordRepository.findAllByEntityName("student-name"))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessage("Invalid entity name: student-name");
+    assertThatThrownBy(() -> businessRecordRepository.create("Students", UUID.randomUUID(), Map.of("bad-name", 1)))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessage("Invalid column name: bad-name");
+    assertThatThrownBy(() -> businessRecordRepository.create("Students", UUID.randomUUID(), Map.of("", 1)))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessage("Column name must be provided");
   }
 
   private void saveFields(EntityField... fields) {
