@@ -77,6 +77,18 @@ class ApiIntegrationTest {
         .contains("true");
   }
 
+  @Test
+  void openApiDocumentationIncludesBusinessEndpoints() throws Exception {
+    HttpResponse<String> response = http.get("/v3/api-docs");
+
+    assertOk(response);
+    assertThat(response.body())
+        .contains("/api/business-entities")
+        .contains("/api/business-entities/{id}")
+        .contains("/api/entity-fields/{businessEntityId}")
+        .contains("/api/business-entities/{businessEntityId}/records");
+  }
+
   private BusinessEntityResponse createBusinessEntity(String entityName) throws Exception {
     HttpResponse<String> response = http.postJson("/api/entities",
         Map.of("name", entityName, "description", "Student records"));
