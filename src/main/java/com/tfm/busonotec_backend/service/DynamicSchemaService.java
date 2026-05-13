@@ -22,16 +22,17 @@ public class DynamicSchemaService {
 
   public DynamicSchemaService(JdbcTemplate jdbc) { this.jdbc = jdbc; }
 
-  /** Execute SQL statements mapped by entity name. Validates SQL before execution. */
+  /** Execute schema creation statements mapped by entity name. Validates SQL before execution. */
   public void executeStatements(Map<String, String> statementsByEntity) {
     if (statementsByEntity == null || statementsByEntity.isEmpty()) return;
     for (Map.Entry<String, String> e : statementsByEntity.entrySet()) {
       String entity = Objects.requireNonNull(e.getKey(), "Entity name must not be null");
       String sql = Objects.requireNonNull(e.getValue(), "SQL must not be null for entity " + entity);
-      validateSql(sql);
+      validateIdentifier(entity, "entity name");
+      validateCreateTableSql(entity, sql);
       log.info("Executing SQL for entity {}: {}", entity, sql);
       jdbc.execute(sql);
-      createdEntities.add(entity.toLowerCase());
+      createdEntities.add(entity.toLowerCase(Locale.ROOT));
       log.info("Created/registered entity: {}", entity);
     }
   }
@@ -64,21 +65,26 @@ public class DynamicSchemaService {
     jdbc.execute(sql);
   }
 
-  /** Validate SQL before execution. Only allow CREATE TABLE and INSERT INTO. */
-  private void validateSql(String sql) {
+  /** Validate SQL before execution. Only allow the expected CREATE TABLE statement. */
+  private void validateCreateTableSql(String entityName, String sql) {
     if (sql == null || sql.isBlank()) throw new IllegalArgumentException("SQL statement is empty");
-    String s = sql.trim().toUpperCase(Locale.ROOT);
+    String s = sql.trim();
     // reject multi-statement payloads (allow trailing ; at end)
     if (s.contains(";") && s.indexOf(";") != s.length() - 1) {
       throw new IllegalArgumentException("Multiple statements or trailing content not allowed");
     }
-    if (s.startsWith("CREATE TABLE") || s.startsWith("INSERT INTO")) {
-      return;
+    if (s.endsWith(";")) {
+      s = s.substring(0, s.length() - 1).trim();
     }
-    if (s.contains("DROP ") || s.contains("TRUNCATE ") || s.contains("DELETE FROM") || s.contains("ALTER ")) {
+    String upper = s.toUpperCase(Locale.ROOT);
+    if (upper.contains("DROP ") || upper.contains("TRUNCATE ") || upper.contains("DELETE FROM")
+        || upper.contains("ALTER ") || upper.contains("INSERT INTO")) {
       throw new IllegalArgumentException("Dangerous SQL keywords detected");
     }
-    throw new IllegalArgumentException("Only CREATE TABLE and INSERT INTO statements are allowed");
+    String expected = "CREATE TABLE IF NOT EXISTS " + quote(entityName) + " (id UUID PRIMARY KEY)";
+    if (!s.equals(expected)) {
+      throw new IllegalArgumentException("Only the expected CREATE TABLE statement is allowed");
+    }
   }
 
   // For testing/debug

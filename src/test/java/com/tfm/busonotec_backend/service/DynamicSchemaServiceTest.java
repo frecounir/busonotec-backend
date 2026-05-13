@@ -38,16 +38,15 @@ class DynamicSchemaServiceTest {
   }
 
   @Test
-  void executeStatementsAllowsCreateTableAndInsertIntoStatements() {
+  void executeStatementsAllowsExpectedCreateTableStatements() {
     Map<String, String> statements = new LinkedHashMap<>();
     statements.put("Students", CREATE_STUDENTS_TABLE);
-    statements.put("AuditLog", "INSERT INTO audit_log(id) VALUES ('1')");
 
     service.executeStatements(statements);
 
     assertThat(jdbc.executedSql())
-        .containsExactly(CREATE_STUDENTS_TABLE, "INSERT INTO audit_log(id) VALUES ('1')");
-    assertThat(service.getCreatedEntities()).containsExactlyInAnyOrder("students", "auditlog");
+        .containsExactly(CREATE_STUDENTS_TABLE);
+    assertThat(service.getCreatedEntities()).containsExactlyInAnyOrder("students");
   }
 
   @ParameterizedTest
@@ -60,7 +59,7 @@ class DynamicSchemaServiceTest {
         "SQL statement is empty",
         "Multiple statements",
         "Dangerous SQL keywords",
-        "Only CREATE TABLE and INSERT INTO");
+        "Only the expected CREATE TABLE");
     assertThat(jdbc.hasNoExecutedSql()).isTrue();
   }
 
@@ -144,6 +143,8 @@ class DynamicSchemaServiceTest {
         "TRUNCATE demo",
         "DELETE FROM demo",
         "ALTER TABLE demo ADD COLUMN name TEXT",
+        "INSERT INTO audit_log(id) VALUES ('1')",
+        "CREATE TABLE demo(id UUID)",
         "SELECT * FROM demo"
     );
   }
