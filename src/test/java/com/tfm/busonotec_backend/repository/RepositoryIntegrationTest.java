@@ -58,6 +58,11 @@ class RepositoryIntegrationTest {
     assertThat(businessEntityRepository.findById(UUID.randomUUID())).isEmpty();
     assertThat(businessEntityRepository.findByName("Missing")).isEmpty();
     assertThat(businessEntityRepository.existsByName("Missing")).isFalse();
+
+    assertThat(businessEntityRepository.deleteById(beta.getId())).isTrue();
+    assertThat(businessEntityRepository.findById(beta.getId())).isEmpty();
+    assertThat(businessEntityRepository.existsByName("Beta")).isFalse();
+    assertThat(businessEntityRepository.deleteById(UUID.randomUUID())).isFalse();
   }
 
   @Test
@@ -82,6 +87,11 @@ class RepositoryIntegrationTest {
     assertThat(entityFieldRepository.existsByNameForEntity(studentsId, "alpha")).isTrue();
     assertThat(entityFieldRepository.existsByNameForEntity(studentsId, "missing")).isFalse();
     assertThat(entityFieldRepository.existsByNameForEntity(UUID.randomUUID(), "alpha")).isFalse();
+
+    assertThat(entityFieldRepository.deleteByBusinessEntityId(studentsId)).isEqualTo(2);
+    assertThat(entityFieldRepository.findByBusinessEntityId(studentsId)).isEmpty();
+    assertThat(entityFieldRepository.findByBusinessEntityId(activitiesId)).singleElement()
+        .satisfies(field -> assertThat(field.getName()).isEqualTo("zeta"));
   }
 
   @Test

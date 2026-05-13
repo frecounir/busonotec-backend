@@ -47,4 +47,9 @@ public class BusinessEntityRepository {
   public boolean existsByName(String name) {
     return findByName(name).isPresent();
   }
+
+  public boolean deleteById(UUID id) {
+    String sql = "DELETE FROM business_entities WHERE id = ?";
+    return jdbc.update(sql, id) > 0;
+  }
 }

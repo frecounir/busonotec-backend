@@ -37,4 +37,9 @@ public class EntityFieldRepository {
     Integer count = jdbc.queryForObject(sql, Integer.class, businessEntityId, name);
     return count != null && count > 0;
   }
+
+  public int deleteByBusinessEntityId(UUID businessEntityId) {
+    String sql = "DELETE FROM entity_fields WHERE business_entity_id = ?";
+    return jdbc.update(sql, businessEntityId);
+  }
 }

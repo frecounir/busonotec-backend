@@ -60,4 +60,15 @@ public final class InMemoryBusinessEntityRepository extends BusinessEntityReposi
   public boolean existsByName(String name) {
     return entitiesByName.containsKey(name);
   }
+
+  @Override
+  public boolean deleteById(UUID id) {
+    BusinessEntity removed = entitiesById.remove(id);
+    if (removed == null) {
+      return false;
+    }
+    entitiesByName.remove(removed.getName());
+    savedEntities.removeIf(entity -> id.equals(entity.getId()));
+    return true;
+  }
 }

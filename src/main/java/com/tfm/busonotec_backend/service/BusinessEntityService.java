@@ -4,9 +4,11 @@ import com.tfm.busonotec_backend.domain.BusinessEntity;
 import com.tfm.busonotec_backend.dto.BusinessEntityRequest;
 import com.tfm.busonotec_backend.dto.BusinessEntityResponse;
 import com.tfm.busonotec_backend.repository.BusinessEntityRepository;
+import com.tfm.busonotec_backend.repository.EntityFieldRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.*;
 
@@ -15,10 +17,16 @@ public class BusinessEntityService {
   private static final Logger log = LoggerFactory.getLogger(BusinessEntityService.class);
   private static final String NAME_REGEX = "^[a-zA-Z][a-zA-Z0-9_]{0,62}$";
   private final BusinessEntityRepository repository;
+  private final EntityFieldRepository fieldRepository;
   private final DynamicSchemaService dynamicSchemaService;
 
-  public BusinessEntityService(BusinessEntityRepository repository, DynamicSchemaService dynamicSchemaService) {
+  public BusinessEntityService(
+      BusinessEntityRepository repository,
+      EntityFieldRepository fieldRepository,
+      DynamicSchemaService dynamicSchemaService
+  ) {
     this.repository = repository;
+    this.fieldRepository = fieldRepository;
     this.dynamicSchemaService = dynamicSchemaService;
   }
 
@@ -54,6 +62,22 @@ public class BusinessEntityService {
     BusinessEntity entity = repository.findById(id)
         .orElseThrow(() -> new IllegalArgumentException("Business entity not found: " + id));
     return toResponse(entity);
+  }
+
+  @Transactional
+  public void delete(UUID id) {
+    if (id == null) {
+      throw new IllegalArgumentException("Business entity id must be provided");
+    }
+    BusinessEntity entity = repository.findById(id)
+        .orElseThrow(() -> new IllegalArgumentException("Business entity not found: " + id));
+
+    fieldRepository.deleteByBusinessEntityId(id);
+    boolean deleted = repository.deleteById(id);
+    if (!deleted) {
+      throw new IllegalArgumentException("Business entity not found: " + id);
+    }
+    dynamicSchemaService.dropEntityTable(entity.getName());
   }
 
   private BusinessEntityResponse toResponse(BusinessEntity entity) {

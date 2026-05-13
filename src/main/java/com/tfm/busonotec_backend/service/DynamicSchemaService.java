@@ -65,6 +65,14 @@ public class DynamicSchemaService {
     jdbc.execute(sql);
   }
 
+  public void dropEntityTable(String entityName) {
+    validateIdentifier(entityName, "entity name");
+    String sql = "DROP TABLE IF EXISTS " + quote(entityName);
+    log.info("Dropping physical table for entity {} with SQL: {}", entityName, sql);
+    jdbc.execute(sql);
+    createdEntities.remove(entityName.toLowerCase(Locale.ROOT));
+  }
+
   /** Validate SQL before execution. Only allow the expected CREATE TABLE statement. */
   private void validateCreateTableSql(String entityName, String sql) {
     if (sql == null || sql.isBlank()) throw new IllegalArgumentException("SQL statement is empty");

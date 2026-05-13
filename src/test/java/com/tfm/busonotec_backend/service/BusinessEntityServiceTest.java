@@ -3,6 +3,7 @@ package com.tfm.busonotec_backend.service;
 import com.tfm.busonotec_backend.dto.BusinessEntityRequest;
 import com.tfm.busonotec_backend.dto.BusinessEntityResponse;
 import com.tfm.busonotec_backend.support.InMemoryBusinessEntityRepository;
+import com.tfm.busonotec_backend.support.InMemoryEntityFieldRepository;
 import com.tfm.busonotec_backend.support.RecordingDynamicSchemaService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -17,6 +18,7 @@ import static com.tfm.busonotec_backend.support.TestFixtures.STUDENTS;
 import static com.tfm.busonotec_backend.support.TestFixtures.STUDENT_DESCRIPTION;
 import static com.tfm.busonotec_backend.support.TestFixtures.businessEntity;
 import static com.tfm.busonotec_backend.support.TestFixtures.businessEntityRequest;
+import static com.tfm.busonotec_backend.support.TestFixtures.entityField;
 import static com.tfm.busonotec_backend.support.TestFixtures.studentsEntity;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -26,14 +28,16 @@ class BusinessEntityServiceTest {
       "CREATE TABLE IF NOT EXISTS \"students\" (id UUID PRIMARY KEY)";
 
   private InMemoryBusinessEntityRepository repository;
+  private InMemoryEntityFieldRepository fieldRepository;
   private RecordingDynamicSchemaService schemaService;
   private BusinessEntityService service;
 
   @BeforeEach
   void setUp() {
     repository = new InMemoryBusinessEntityRepository();
+    fieldRepository = new InMemoryEntityFieldRepository();
     schemaService = new RecordingDynamicSchemaService();
-    service = new BusinessEntityService(repository, schemaService);
+    service = new BusinessEntityService(repository, fieldRepository, schemaService);
   }
 
   @Test
@@ -108,6 +112,40 @@ class BusinessEntityServiceTest {
         () -> service.findById(id));
 
     assertThat(exception).hasMessage("Business entity not found: " + id);
+  }
+
+  @Test
+  void deleteRemovesMetadataFieldsAndPhysicalTable() {
+    UUID id = UUID.randomUUID();
+    repository.add(studentsEntity(id));
+    fieldRepository.add(entityField(UUID.randomUUID(), id, "score", "number"));
+    schemaService.markEntityAsExisting(STUDENTS);
+
+    service.delete(id);
+
+    assertThat(repository.findById(id)).isEmpty();
+    assertThat(repository.existsByName(STUDENTS)).isFalse();
+    assertThat(fieldRepository.findByBusinessEntityId(id)).isEmpty();
+    assertThat(schemaService.droppedEntities()).containsExactly(STUDENTS);
+  }
+
+  @Test
+  void deleteRejectsMissingInput() {
+    IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
+        () -> service.delete(null));
+
+    assertThat(exception).hasMessage("Business entity id must be provided");
+  }
+
+  @Test
+  void deleteRejectsUnknownEntity() {
+    UUID id = UUID.randomUUID();
+
+    IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
+        () -> service.delete(id));
+
+    assertThat(exception).hasMessage("Business entity not found: " + id);
+    assertThat(schemaService.droppedEntities()).isEmpty();
   }
 
   static Stream<String> invalidEntityNames() {

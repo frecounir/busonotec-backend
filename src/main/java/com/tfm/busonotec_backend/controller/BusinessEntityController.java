@@ -114,4 +114,26 @@ public class BusinessEntityController {
   ) {
     return ResponseEntity.ok(service.findById(id));
   }
+
+  @Operation(
+      summary = "Delete a business entity",
+      description = "Deletes the business entity metadata, its registered fields, and its physical database table."
+  )
+  @ApiResponses({
+      @ApiResponse(responseCode = "204", description = "Business entity deleted.", content = @Content),
+      @ApiResponse(responseCode = "400", description = "Invalid UUID.", content = @Content),
+      @ApiResponse(responseCode = "404", description = "Business entity not found.", content = @Content)
+  })
+  @DeleteMapping("/{id}")
+  public ResponseEntity<Void> delete(
+      @Parameter(
+          description = "Business entity UUID.",
+          example = "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+          required = true
+      )
+      @PathVariable UUID id
+  ) {
+    service.delete(id);
+    return ResponseEntity.noContent().build();
+  }
 }

@@ -55,6 +55,15 @@ public final class InMemoryEntityFieldRepository extends EntityFieldRepository {
     return existingNamesByEntity.contains(key(businessEntityId, name));
   }
 
+  @Override
+  public int deleteByBusinessEntityId(UUID businessEntityId) {
+    int before = fields.size();
+    fields.removeIf(field -> businessEntityId.equals(field.getBusinessEntityId()));
+    savedFields.removeIf(field -> businessEntityId.equals(field.getBusinessEntityId()));
+    existingNamesByEntity.removeIf(key -> key.startsWith(businessEntityId + ":"));
+    return before - fields.size();
+  }
+
   private String key(UUID businessEntityId, String name) {
     return businessEntityId + ":" + name;
   }
