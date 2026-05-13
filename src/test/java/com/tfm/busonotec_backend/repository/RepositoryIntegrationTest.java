@@ -134,6 +134,38 @@ class RepositoryIntegrationTest {
   }
 
   @Test
+  void businessRecordRepositoryUpdatesAndFindsRowsInPhysicalEntityTable() {
+    UUID recordId = UUID.fromString("00000000-0000-0000-0000-000000000020");
+    UUID missingRecordId = UUID.fromString("00000000-0000-0000-0000-000000000021");
+    jdbc.execute("CREATE TABLE \"students\" (id UUID PRIMARY KEY, name VARCHAR(255), score NUMERIC)");
+    businessRecordRepository.create("Students", recordId, Map.of("name", "Ana", "score", 95));
+
+    boolean updated = businessRecordRepository.update("Students", recordId, Map.of("score", 100));
+
+    assertThat(updated).isTrue();
+    assertThat(businessRecordRepository.findByEntityNameAndId("Students", recordId)).satisfies(record -> {
+      assertThat(record.get("id")).isEqualTo(recordId);
+      assertThat(record.get("name")).isEqualTo("Ana");
+      assertThat(((Number) record.get("score")).intValue()).isEqualTo(100);
+    });
+    assertThat(businessRecordRepository.update("Students", missingRecordId, Map.of("score", 70))).isFalse();
+  }
+
+  @Test
+  void businessRecordRepositoryDeletesRowsFromPhysicalEntityTable() {
+    UUID recordId = UUID.fromString("00000000-0000-0000-0000-000000000030");
+    UUID missingRecordId = UUID.fromString("00000000-0000-0000-0000-000000000031");
+    jdbc.execute("CREATE TABLE \"students\" (id UUID PRIMARY KEY, name VARCHAR(255))");
+    businessRecordRepository.create("Students", recordId, Map.of("name", "Ana"));
+
+    boolean deleted = businessRecordRepository.delete("Students", recordId);
+
+    assertThat(deleted).isTrue();
+    assertThat(businessRecordRepository.findAllByEntityName("Students")).isEmpty();
+    assertThat(businessRecordRepository.delete("Students", missingRecordId)).isFalse();
+  }
+
+  @Test
   void businessRecordRepositoryRejectsInvalidEntityNames() {
     assertThatThrownBy(() -> businessRecordRepository.findAllByEntityName(null))
         .isInstanceOf(IllegalArgumentException.class)
@@ -150,6 +182,12 @@ class RepositoryIntegrationTest {
     assertThatThrownBy(() -> businessRecordRepository.create("Students", UUID.randomUUID(), Map.of("", 1)))
         .isInstanceOf(IllegalArgumentException.class)
         .hasMessage("Column name must be provided");
+    assertThatThrownBy(() -> businessRecordRepository.update("Students", UUID.randomUUID(), Map.of("bad-name", 1)))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessage("Invalid column name: bad-name");
+    assertThatThrownBy(() -> businessRecordRepository.update("Students", UUID.randomUUID(), Map.of()))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessage("Record values must be provided");
   }
 
   private void saveFields(EntityField... fields) {

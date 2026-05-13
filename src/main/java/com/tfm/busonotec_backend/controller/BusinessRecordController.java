@@ -11,9 +11,12 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -130,5 +133,99 @@ public class BusinessRecordController {
       @RequestBody Map<String, Object> record
   ) {
     return ResponseEntity.ok(service.create(businessEntityId, record));
+  }
+
+  @Operation(
+      summary = "Update a record for a business entity",
+      description = "Updates one or more dynamic fields in the physical table associated with the business entity. Only the keys sent in the request body are modified."
+  )
+  @ApiResponses({
+      @ApiResponse(
+          responseCode = "200",
+          description = "Record updated.",
+          content = @Content(
+              mediaType = "application/json",
+              schema = @Schema(
+                  type = "object",
+                  additionalProperties = Schema.AdditionalPropertiesValue.TRUE,
+                  description = "Updated dynamic record including the id."
+              ),
+              examples = @ExampleObject(value = """
+                  {
+                    "id": "58f2a6a4-8e72-4d4f-bb13-ecf5f1f2c7c1",
+                    "score": 100,
+                    "active": true
+                  }
+                  """)
+          )
+      ),
+      @ApiResponse(responseCode = "400", description = "Invalid field, unknown field, duplicated field, empty body, reserved id, or missing physical table.", content = @Content),
+      @ApiResponse(responseCode = "404", description = "Business entity or record not found.", content = @Content)
+  })
+  @RequestMapping(
+      value = {"/api/business-entities/{businessEntityId}/records/{recordId}", "/api/entities/{businessEntityId}/records/{recordId}"},
+      method = {RequestMethod.PUT, RequestMethod.PATCH}
+  )
+  public ResponseEntity<Map<String, Object>> update(
+      @Parameter(
+          description = "Business entity UUID.",
+          example = "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+          required = true
+      )
+      @PathVariable("businessEntityId") UUID businessEntityId,
+      @Parameter(
+          description = "Record UUID generated when the row was created.",
+          example = "58f2a6a4-8e72-4d4f-bb13-ecf5f1f2c7c1",
+          required = true
+      )
+      @PathVariable("recordId") UUID recordId,
+      @io.swagger.v3.oas.annotations.parameters.RequestBody(
+          required = true,
+          description = "Dynamic values to update. Keys must match fields registered for the business entity. Do not send id.",
+          content = @Content(
+              mediaType = "application/json",
+              schema = @Schema(
+                  type = "object",
+                  additionalProperties = Schema.AdditionalPropertiesValue.TRUE,
+                  description = "Dynamic JSON object with business field names as keys."
+              ),
+              examples = @ExampleObject(value = """
+                  {
+                    "score": 100
+                  }
+                  """)
+          )
+      )
+      @RequestBody Map<String, Object> record
+  ) {
+    return ResponseEntity.ok(service.update(businessEntityId, recordId, record));
+  }
+
+  @Operation(
+      summary = "Delete a record for a business entity",
+      description = "Deletes a row from the physical table associated with the business entity."
+  )
+  @ApiResponses({
+      @ApiResponse(responseCode = "204", description = "Record deleted.", content = @Content),
+      @ApiResponse(responseCode = "400", description = "Invalid business entity UUID, invalid record UUID, or missing physical table.", content = @Content),
+      @ApiResponse(responseCode = "404", description = "Business entity or record not found.", content = @Content)
+  })
+  @DeleteMapping({"/api/business-entities/{businessEntityId}/records/{recordId}", "/api/entities/{businessEntityId}/records/{recordId}"})
+  public ResponseEntity<Void> delete(
+      @Parameter(
+          description = "Business entity UUID.",
+          example = "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+          required = true
+      )
+      @PathVariable("businessEntityId") UUID businessEntityId,
+      @Parameter(
+          description = "Record UUID generated when the row was created.",
+          example = "58f2a6a4-8e72-4d4f-bb13-ecf5f1f2c7c1",
+          required = true
+      )
+      @PathVariable("recordId") UUID recordId
+  ) {
+    service.delete(businessEntityId, recordId);
+    return ResponseEntity.noContent().build();
   }
 }

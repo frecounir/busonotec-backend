@@ -168,4 +168,86 @@ class BusinessRecordServiceTest {
     assertThat(assertThrows(IllegalArgumentException.class, () -> service.create(entityId, Map.of("", 95))))
         .hasMessage("Record field name must be provided");
   }
+
+  @Test
+  void updateChangesAllowedFieldsAndReturnsUpdatedRecord() {
+    prepareStudentsEntityWithScoreField();
+    UUID recordId = UUID.randomUUID();
+    recordRepository.add(new LinkedHashMap<>(Map.of("id", recordId, "score", 95)));
+
+    Map<String, Object> record = service.update(entityId, recordId, Map.of("SCORE", 100));
+
+    assertThat(record).containsEntry("id", recordId)
+        .containsEntry("score", 100);
+    assertThat(recordRepository.updatedEntityNames()).containsExactly(STUDENTS);
+  }
+
+  @Test
+  void updateRejectsMissingRecordIdOrEmptyBody() {
+    prepareStudentsEntityWithScoreField();
+    UUID recordId = UUID.randomUUID();
+
+    assertThat(assertThrows(IllegalArgumentException.class, () -> service.update(entityId, null, Map.of("score", 100))))
+        .hasMessage("Record id must be provided");
+    assertThat(assertThrows(IllegalArgumentException.class, () -> service.update(entityId, recordId, Map.of())))
+        .hasMessage("Record body must include at least one field");
+    assertThat(recordRepository.updatedEntityNames()).isEmpty();
+  }
+
+  @Test
+  void updateRejectsUnknownRecordField() {
+    prepareStudentsEntityWithScoreField();
+
+    IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
+        () -> service.update(entityId, UUID.randomUUID(), Map.of("nickname", "Ana")));
+
+    assertThat(exception).hasMessage("Field is not defined for entity: nickname");
+    assertThat(recordRepository.updatedEntityNames()).isEmpty();
+  }
+
+  @Test
+  void updateRejectsMissingRecord() {
+    prepareStudentsEntityWithScoreField();
+    UUID missingRecordId = UUID.randomUUID();
+
+    IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
+        () -> service.update(entityId, missingRecordId, Map.of("score", 100)));
+
+    assertThat(exception).hasMessage("Record not found: " + missingRecordId);
+    assertThat(recordRepository.updatedEntityNames()).containsExactly(STUDENTS);
+  }
+
+  @Test
+  void deleteRemovesRecordFromPhysicalTable() {
+    prepareStudentsEntity();
+    UUID recordId = UUID.randomUUID();
+    recordRepository.add(new LinkedHashMap<>(Map.of("id", recordId, "score", 95)));
+
+    service.delete(entityId, recordId);
+
+    assertThat(recordRepository.deletedEntityNames()).containsExactly(STUDENTS);
+    assertThat(recordRepository.findAllByEntityName(STUDENTS)).isEmpty();
+  }
+
+  @Test
+  void deleteRejectsMissingRecordIdOrMissingRecord() {
+    prepareStudentsEntity();
+    UUID missingRecordId = UUID.randomUUID();
+
+    assertThat(assertThrows(IllegalArgumentException.class, () -> service.delete(entityId, null)))
+        .hasMessage("Record id must be provided");
+    assertThat(assertThrows(IllegalArgumentException.class, () -> service.delete(entityId, missingRecordId)))
+        .hasMessage("Record not found: " + missingRecordId);
+    assertThat(recordRepository.deletedEntityNames()).containsExactly(STUDENTS);
+  }
+
+  private void prepareStudentsEntityWithScoreField() {
+    prepareStudentsEntity();
+    fieldRepository.add(entityField(UUID.randomUUID(), entityId, "score", "number"));
+  }
+
+  private void prepareStudentsEntity() {
+    entityRepository.add(studentsEntity(entityId));
+    schemaService.markEntityAsExisting(STUDENTS);
+  }
 }

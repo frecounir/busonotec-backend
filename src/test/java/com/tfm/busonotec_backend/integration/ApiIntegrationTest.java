@@ -61,6 +61,17 @@ class ApiIntegrationTest {
       assertThat(record.get("id")).isEqualTo(createdRecord.get("id"));
       assertThat(((Number) record.get("score")).intValue()).isEqualTo(95);
     });
+
+    Map<String, Object> updatedRecord = updateRecord(entity, createdRecord.get("id"), 100);
+
+    assertThat(recordsForEntity(entity)).singleElement().satisfies(record -> {
+      assertThat(record.get("id")).isEqualTo(updatedRecord.get("id"));
+      assertThat(((Number) record.get("score")).intValue()).isEqualTo(100);
+    });
+
+    deleteRecord(entity, updatedRecord.get("id"));
+
+    assertThat(recordsForEntity(entity)).isEmpty();
   }
 
   @Test
@@ -86,7 +97,8 @@ class ApiIntegrationTest {
         .contains("/api/business-entities")
         .contains("/api/business-entities/{id}")
         .contains("/api/entity-fields/{businessEntityId}")
-        .contains("/api/business-entities/{businessEntityId}/records");
+        .contains("/api/business-entities/{businessEntityId}/records")
+        .contains("/api/business-entities/{businessEntityId}/records/{recordId}");
   }
 
   private BusinessEntityResponse createBusinessEntity(String entityName) throws Exception {
@@ -149,6 +161,27 @@ class ApiIntegrationTest {
     assertThat(record.get("id")).isNotNull();
     assertThat(((Number) record.get("score")).intValue()).isEqualTo(score);
     return record;
+  }
+
+  private Map<String, Object> updateRecord(BusinessEntityResponse entity, Object recordId, int score) throws Exception {
+    HttpResponse<String> response = http.patchJson(
+        "/api/entities/" + entity.getId() + "/records/" + recordId,
+        Map.of("score", score)
+    );
+
+    assertOk(response);
+    Map<String, Object> record = http.readRecord(response);
+    assertThat(record.get("id")).isEqualTo(recordId);
+    assertThat(((Number) record.get("score")).intValue()).isEqualTo(score);
+    return record;
+  }
+
+  private void deleteRecord(BusinessEntityResponse entity, Object recordId) throws Exception {
+    HttpResponse<String> response = http.delete("/api/entities/" + entity.getId() + "/records/" + recordId);
+
+    assertThat(response.statusCode())
+        .withFailMessage(response.body())
+        .isEqualTo(204);
   }
 
   private void assertOk(HttpResponse<String> response) {

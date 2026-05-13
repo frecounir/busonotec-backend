@@ -48,6 +48,31 @@ public class BusinessRecordService {
     return recordRepository.create(entity.getName(), UUID.randomUUID(), valuesByColumn);
   }
 
+  public Map<String, Object> update(UUID businessEntityId, UUID recordId, Map<String, Object> record) {
+    BusinessEntity entity = getBusinessEntityWithPhysicalTable(businessEntityId);
+    validateRecordId(recordId);
+    Map<String, Object> valuesByColumn = normalizeRecordValues(businessEntityId, record);
+    if (valuesByColumn.isEmpty()) {
+      throw new IllegalArgumentException("Record body must include at least one field");
+    }
+
+    boolean updated = recordRepository.update(entity.getName(), recordId, valuesByColumn);
+    if (!updated) {
+      throw new IllegalArgumentException("Record not found: " + recordId);
+    }
+    return recordRepository.findByEntityNameAndId(entity.getName(), recordId);
+  }
+
+  public void delete(UUID businessEntityId, UUID recordId) {
+    BusinessEntity entity = getBusinessEntityWithPhysicalTable(businessEntityId);
+    validateRecordId(recordId);
+
+    boolean deleted = recordRepository.delete(entity.getName(), recordId);
+    if (!deleted) {
+      throw new IllegalArgumentException("Record not found: " + recordId);
+    }
+  }
+
   private BusinessEntity getBusinessEntityWithPhysicalTable(UUID businessEntityId) {
     if (businessEntityId == null) {
       throw new IllegalArgumentException("Business entity id must be provided");
@@ -96,5 +121,11 @@ public class BusinessRecordService {
       throw new IllegalArgumentException("Record field name 'id' is reserved");
     }
     return fieldName.toLowerCase(Locale.ROOT);
+  }
+
+  private void validateRecordId(UUID recordId) {
+    if (recordId == null) {
+      throw new IllegalArgumentException("Record id must be provided");
+    }
   }
 }

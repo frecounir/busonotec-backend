@@ -35,10 +35,21 @@ public final class TestHttpClient {
   }
 
   public HttpResponse<String> postJson(String path, Object body) throws IOException, InterruptedException {
+    return sendJson("POST", path, body);
+  }
+
+  public HttpResponse<String> putJson(String path, Object body) throws IOException, InterruptedException {
+    return sendJson("PUT", path, body);
+  }
+
+  public HttpResponse<String> patchJson(String path, Object body) throws IOException, InterruptedException {
+    return sendJson("PATCH", path, body);
+  }
+
+  public HttpResponse<String> delete(String path) throws IOException, InterruptedException {
     return send(HttpRequest.newBuilder(uri(path))
         .timeout(REQUEST_TIMEOUT)
-        .header("Content-Type", "application/json")
-        .POST(HttpRequest.BodyPublishers.ofString(objectMapper.writeValueAsString(body)))
+        .DELETE()
         .build());
   }
 
@@ -71,6 +82,15 @@ public final class TestHttpClient {
 
   private HttpResponse<String> send(HttpRequest request) throws IOException, InterruptedException {
     return client.send(request, HttpResponse.BodyHandlers.ofString());
+  }
+
+  private HttpResponse<String> sendJson(String method, String path, Object body)
+      throws IOException, InterruptedException {
+    return send(HttpRequest.newBuilder(uri(path))
+        .timeout(REQUEST_TIMEOUT)
+        .header("Content-Type", "application/json")
+        .method(method, HttpRequest.BodyPublishers.ofString(objectMapper.writeValueAsString(body)))
+        .build());
   }
 
   private URI uri(String path) {
