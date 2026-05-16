@@ -1,6 +1,7 @@
 package com.tfm.busonotec_backend.controller;
 
 import com.tfm.busonotec_backend.dto.AiBusinessSchemaRequest;
+import com.tfm.busonotec_backend.dto.AiBusinessSchemaPlan;
 import com.tfm.busonotec_backend.dto.AiBusinessSchemaResponse;
 import com.tfm.busonotec_backend.service.AiBusinessSchemaService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -28,13 +29,64 @@ public class AiBusinessSchemaController {
   }
 
   @Operation(
-      summary = "Crear esquema de negocio desde un prompt",
-      description = "Envia un prompt en lenguaje natural al asistente de IA generativa. El asistente responde un plan JSON estructurado en espanol, y el backend usa los servicios existentes de entidades y campos para crear metadata, tablas fisicas y columnas."
+      summary = "Crear plan de esquema de negocio desde un prompt",
+      description = "Envia un prompt en lenguaje natural al asistente de IA generativa y devuelve un plan JSON estructurado en espanol. Este endpoint no crea metadata, tablas ni columnas."
   )
   @ApiResponses({
       @ApiResponse(
           responseCode = "200",
-          description = "Esquema de negocio generado y creado.",
+          description = "Plan de esquema generado.",
+          content = @Content(
+              mediaType = "application/json",
+              schema = @Schema(implementation = AiBusinessSchemaPlan.class),
+              examples = @ExampleObject(value = """
+                  {
+                    "businessEntities": [
+                      {
+                        "name": "Estudiantes",
+                        "description": "Estudiantes inscritos en actividades academicas",
+                        "fields": [
+                          { "name": "nombre", "type": "string" },
+                          { "name": "correoElectronico", "type": "string" },
+                          { "name": "activo", "type": "boolean" }
+                        ]
+                      }
+                    ]
+                  }
+                  """)
+          )
+      ),
+      @ApiResponse(responseCode = "400", description = "Prompt invalido o esquema generado por IA invalido.", content = @Content),
+      @ApiResponse(responseCode = "500", description = "Error de configuracion o comunicacion con el proveedor de IA.", content = @Content)
+  })
+  @PostMapping("/api/ai/business-schema/plan")
+  public ResponseEntity<AiBusinessSchemaPlan> createPlanFromPrompt(
+      @io.swagger.v3.oas.annotations.parameters.RequestBody(
+          required = true,
+          description = "Prompt que describe las entidades de negocio y campos a crear.",
+          content = @Content(
+              mediaType = "application/json",
+              schema = @Schema(implementation = AiBusinessSchemaRequest.class),
+              examples = @ExampleObject(value = """
+                  {
+                    "prompt": "Crea entidades para estudiantes y actividades. Estudiantes necesita nombre, correoElectronico y activo. Actividades necesita titulo, fechaInicio y duracion."
+                  }
+                  """)
+          )
+      )
+      @RequestBody AiBusinessSchemaRequest request
+  ) {
+    return ResponseEntity.ok(service.createPlanFromPrompt(request));
+  }
+
+  @Operation(
+      summary = "Ejecutar plan de esquema de negocio",
+      description = "Recibe un plan JSON previamente revisado por el usuario y lo ejecuta usando los servicios existentes de entidades y campos para crear metadata, tablas fisicas y columnas."
+  )
+  @ApiResponses({
+      @ApiResponse(
+          responseCode = "200",
+          description = "Plan ejecutado y recursos creados.",
           content = @Content(
               mediaType = "application/json",
               schema = @Schema(implementation = AiBusinessSchemaResponse.class),
@@ -74,26 +126,35 @@ public class AiBusinessSchemaController {
                   """)
           )
       ),
-      @ApiResponse(responseCode = "400", description = "Prompt invalido o esquema generado por IA invalido.", content = @Content),
-      @ApiResponse(responseCode = "500", description = "Error de configuracion o comunicacion con el proveedor de IA.", content = @Content)
+      @ApiResponse(responseCode = "400", description = "Plan invalido o imposible de ejecutar.", content = @Content)
   })
-  @PostMapping("/api/ai/business-schema")
-  public ResponseEntity<AiBusinessSchemaResponse> createFromPrompt(
+  @PostMapping("/api/ai/business-schema/execute")
+  public ResponseEntity<AiBusinessSchemaResponse> executePlan(
       @io.swagger.v3.oas.annotations.parameters.RequestBody(
           required = true,
-          description = "Prompt que describe las entidades de negocio y campos a crear.",
+          description = "Plan de esquema revisado y aprobado por el usuario.",
           content = @Content(
               mediaType = "application/json",
-              schema = @Schema(implementation = AiBusinessSchemaRequest.class),
+              schema = @Schema(implementation = AiBusinessSchemaPlan.class),
               examples = @ExampleObject(value = """
                   {
-                    "prompt": "Crea entidades para estudiantes y actividades. Estudiantes necesita nombre, correoElectronico y activo. Actividades necesita titulo, fechaInicio y duracion."
+                    "businessEntities": [
+                      {
+                        "name": "Estudiantes",
+                        "description": "Estudiantes inscritos en actividades academicas",
+                        "fields": [
+                          { "name": "nombre", "type": "string" },
+                          { "name": "correoElectronico", "type": "string" },
+                          { "name": "activo", "type": "boolean" }
+                        ]
+                      }
+                    ]
                   }
                   """)
           )
       )
-      @RequestBody AiBusinessSchemaRequest request
+      @RequestBody AiBusinessSchemaPlan plan
   ) {
-    return ResponseEntity.ok(service.createFromPrompt(request));
+    return ResponseEntity.ok(service.executePlan(plan));
   }
 }

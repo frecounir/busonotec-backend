@@ -37,10 +37,25 @@ class AiBusinessSchemaServiceTest {
   }
 
   @Test
-  void createFromPromptCreatesEntitiesAndFieldsFromGeneratedPlan() {
-    AiBusinessSchemaResponse response = service.createFromPrompt(new AiBusinessSchemaRequest("Crea esquema de estudiantes"));
+  void createPlanFromPromptReturnsGeneratedPlanWithoutCreatingAnything() {
+    AiBusinessSchemaPlan plan = service.createPlanFromPrompt(new AiBusinessSchemaRequest("Crea esquema de estudiantes"));
 
     assertThat(agentClient.prompts()).containsExactly("Crea esquema de estudiantes");
+    assertThat(plan.businessEntities()).singleElement().satisfies(entity -> {
+      assertThat(entity.name()).isEqualTo("Estudiantes");
+      assertThat(entity.fields()).extracting("name").containsExactly("puntaje", "activo");
+    });
+    assertThat(entityRepository.hasNoSavedEntities()).isTrue();
+    assertThat(fieldRepository.hasNoSavedFields()).isTrue();
+    assertThat(schemaService.hasNoStatements()).isTrue();
+    assertThat(schemaService.hasNoAddedColumns()).isTrue();
+  }
+
+  @Test
+  void executePlanCreatesEntitiesAndFieldsFromApprovedPlan() {
+    AiBusinessSchemaResponse response = service.executePlan(validPlan());
+
+    assertThat(agentClient.prompts()).isEmpty();
     assertThat(response.createdBusinessEntities()).singleElement().satisfies(created -> {
       assertThat(created.businessEntity().getName()).isEqualTo("Estudiantes");
       assertThat(created.fields()).extracting("name").containsExactly("puntaje", "activo");
@@ -57,9 +72,9 @@ class AiBusinessSchemaServiceTest {
   }
 
   @Test
-  void createFromPromptRejectsBlankPromptBeforeCallingAgent() {
+  void createPlanFromPromptRejectsBlankPromptBeforeCallingAgent() {
     IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
-        () -> service.createFromPrompt(new AiBusinessSchemaRequest(" ")));
+        () -> service.createPlanFromPrompt(new AiBusinessSchemaRequest(" ")));
 
     assertThat(exception).hasMessage("Prompt must be provided");
     assertThat(agentClient.prompts()).isEmpty();
@@ -67,18 +82,18 @@ class AiBusinessSchemaServiceTest {
   }
 
   @Test
-  void createFromPromptRejectsMissingEntitiesInAiPlan() {
+  void createPlanFromPromptRejectsMissingEntitiesInAiPlan() {
     agentClient.plan = new AiBusinessSchemaPlan(List.of());
 
     IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
-        () -> service.createFromPrompt(new AiBusinessSchemaRequest("Crea esquema")));
+        () -> service.createPlanFromPrompt(new AiBusinessSchemaRequest("Crea esquema")));
 
     assertThat(exception).hasMessage("AI response must include at least one business entity");
     assertThat(entityRepository.hasNoSavedEntities()).isTrue();
   }
 
   @Test
-  void createFromPromptRejectsInvalidEntityOrFieldDefinitionsBeforeCreatingAnything() {
+  void executePlanRejectsInvalidEntityOrFieldDefinitionsBeforeCreatingAnything() {
     assertInvalidPlan(
         new AiBusinessSchemaPlan(List.of(new AiBusinessEntityDefinition("1Estudiantes", "Invalido", List.of()))),
         "Invalid AI response entity name: 1Estudiantes"
@@ -98,7 +113,7 @@ class AiBusinessSchemaServiceTest {
   }
 
   @Test
-  void createFromPromptRejectsDuplicatedGeneratedNamesBeforeCreatingAnything() {
+  void executePlanRejectsDuplicatedGeneratedNamesBeforeCreatingAnything() {
     assertInvalidPlan(
         new AiBusinessSchemaPlan(List.of(
             new AiBusinessEntityDefinition("Estudiantes", "Registros de estudiantes", List.of()),
@@ -119,7 +134,7 @@ class AiBusinessSchemaServiceTest {
     agentClient.plan = plan;
 
     IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
-        () -> service.createFromPrompt(new AiBusinessSchemaRequest("Crea esquema")));
+        () -> service.executePlan(plan));
 
     assertThat(exception).hasMessage(expectedMessage);
     assertThat(entityRepository.hasNoSavedEntities()).isTrue();

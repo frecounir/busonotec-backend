@@ -92,16 +92,23 @@ class ApiIntegrationTest {
   }
 
   @Test
-  void aiBusinessSchemaEndpointCreatesMetadataAndPhysicalColumnsFromPrompt() throws Exception {
+  void aiBusinessSchemaEndpointsCreatePlanAndExecuteApprovedPlan() throws Exception {
     String entityName = uniqueEntityName("EstudiantesAi");
 
-    HttpResponse<String> response = http.postJson("/api/ai/business-schema", Map.of("prompt", "entityName=" + entityName));
+    HttpResponse<String> planResponse = http.postJson("/api/ai/business-schema/plan", Map.of("prompt", "entityName=" + entityName));
 
-    assertOk(response);
+    assertOk(planResponse);
+    assertThat(tableExists(jdbc, entityName.toLowerCase(Locale.ROOT))).isFalse();
+    assertThat(http.readTextValues(planResponse, "name")).contains(entityName, "puntaje", "activo");
+
+    AiBusinessSchemaPlan plan = http.readBody(planResponse, AiBusinessSchemaPlan.class);
+    HttpResponse<String> executeResponse = http.postJson("/api/ai/business-schema/execute", plan);
+
+    assertOk(executeResponse);
     assertThat(tableExists(jdbc, entityName.toLowerCase(Locale.ROOT))).isTrue();
     assertThat(columnExists(jdbc, entityName.toLowerCase(Locale.ROOT), "puntaje")).isTrue();
     assertThat(columnExists(jdbc, entityName.toLowerCase(Locale.ROOT), "activo")).isTrue();
-    assertThat(http.readTextValues(response, "name")).contains(entityName, "puntaje", "activo");
+    assertThat(http.readTextValues(executeResponse, "name")).contains(entityName, "puntaje", "activo");
   }
 
   @Test
@@ -129,7 +136,8 @@ class ApiIntegrationTest {
         .contains("/api/entity-fields/{businessEntityId}")
         .contains("/api/business-entities/{businessEntityId}/records")
         .contains("/api/business-entities/{businessEntityId}/records/{recordId}")
-        .contains("/api/ai/business-schema");
+        .contains("/api/ai/business-schema/plan")
+        .contains("/api/ai/business-schema/execute");
   }
 
   private BusinessEntityResponse createBusinessEntity(String entityName) throws Exception {

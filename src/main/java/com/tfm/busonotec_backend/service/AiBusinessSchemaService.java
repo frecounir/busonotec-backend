@@ -39,14 +39,18 @@ public class AiBusinessSchemaService {
     this.entityFieldService = entityFieldService;
   }
 
-  @Transactional
-  public AiBusinessSchemaResponse createFromPrompt(AiBusinessSchemaRequest request) {
+  public AiBusinessSchemaPlan createPlanFromPrompt(AiBusinessSchemaRequest request) {
     String prompt = request == null ? null : request.prompt();
     validatePrompt(prompt);
 
     AiBusinessSchemaPlan plan = agentClient.generateBusinessSchema(prompt);
     validatePlan(plan);
+    return plan;
+  }
 
+  @Transactional
+  public AiBusinessSchemaResponse executePlan(AiBusinessSchemaPlan plan) {
+    validatePlan(plan);
     List<CreatedBusinessEntityResponse> createdEntities = new ArrayList<>();
     for (AiBusinessEntityDefinition entityDefinition : plan.businessEntities()) {
       BusinessEntityResponse entity = businessEntityService.create(
