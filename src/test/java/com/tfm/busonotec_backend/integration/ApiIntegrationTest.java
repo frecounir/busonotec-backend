@@ -2,12 +2,19 @@ package com.tfm.busonotec_backend.integration;
 
 import com.tfm.busonotec_backend.dto.BusinessEntityResponse;
 import com.tfm.busonotec_backend.dto.EntityFieldResponse;
+import com.tfm.busonotec_backend.dto.AiBusinessEntityDefinition;
+import com.tfm.busonotec_backend.dto.AiBusinessSchemaPlan;
+import com.tfm.busonotec_backend.dto.AiEntityFieldDefinition;
+import com.tfm.busonotec_backend.service.GenerativeAgentClient;
 import com.tfm.busonotec_backend.support.TestHttpClient;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Primary;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
 
@@ -15,6 +22,8 @@ import java.net.http.HttpResponse;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import static com.tfm.busonotec_backend.support.H2TestDatabase.columnExists;
 import static com.tfm.busonotec_backend.support.H2TestDatabase.tableExists;
@@ -24,6 +33,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 @ActiveProfiles("test")
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 class ApiIntegrationTest {
+  private static final Pattern ENTITY_NAME_IN_PROMPT = Pattern.compile("entityName=([a-zA-Z][a-zA-Z0-9_]{0,62})");
+
   @LocalServerPort
   private int port;
 
@@ -81,6 +92,19 @@ class ApiIntegrationTest {
   }
 
   @Test
+  void aiBusinessSchemaEndpointCreatesMetadataAndPhysicalColumnsFromPrompt() throws Exception {
+    String entityName = uniqueEntityName("EstudiantesAi");
+
+    HttpResponse<String> response = http.postJson("/api/ai/business-schema", Map.of("prompt", "entityName=" + entityName));
+
+    assertOk(response);
+    assertThat(tableExists(jdbc, entityName.toLowerCase(Locale.ROOT))).isTrue();
+    assertThat(columnExists(jdbc, entityName.toLowerCase(Locale.ROOT), "puntaje")).isTrue();
+    assertThat(columnExists(jdbc, entityName.toLowerCase(Locale.ROOT), "activo")).isTrue();
+    assertThat(http.readTextValues(response, "name")).contains(entityName, "puntaje", "activo");
+  }
+
+  @Test
   void corsPreflightAllowsReactOrigins() throws Exception {
     HttpResponse<String> response = http.options("/api/business-entities", Map.of(
         "Origin", "http://localhost:5173",
@@ -104,7 +128,8 @@ class ApiIntegrationTest {
         .contains("/api/business-entities/{id}")
         .contains("/api/entity-fields/{businessEntityId}")
         .contains("/api/business-entities/{businessEntityId}/records")
-        .contains("/api/business-entities/{businessEntityId}/records/{recordId}");
+        .contains("/api/business-entities/{businessEntityId}/records/{recordId}")
+        .contains("/api/ai/business-schema");
   }
 
   private BusinessEntityResponse createBusinessEntity(String entityName) throws Exception {
@@ -209,5 +234,23 @@ class ApiIntegrationTest {
     assertThat(response.statusCode())
         .withFailMessage(response.body())
         .isEqualTo(200);
+  }
+
+  @TestConfiguration
+  static class FakeAiConfiguration {
+    @Bean
+    @Primary
+    GenerativeAgentClient fakeGenerativeAgentClient() {
+      return prompt -> {
+        Matcher matcher = ENTITY_NAME_IN_PROMPT.matcher(prompt);
+        String entityName = matcher.find() ? matcher.group(1) : uniqueEntityName("GeneradoAi");
+        return new AiBusinessSchemaPlan(List.of(
+            new AiBusinessEntityDefinition(entityName, "Generado por IA de prueba", List.of(
+                new AiEntityFieldDefinition("puntaje", "number"),
+                new AiEntityFieldDefinition("activo", "boolean")
+            ))
+        ));
+      };
+    }
   }
 }

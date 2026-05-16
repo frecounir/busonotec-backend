@@ -6,3 +6,9 @@ spring:
     username: ${SPRING_DATASOURCE_USERNAME:busonotec-user}
     password: ${SPRING_DATASOURCE_PASSWORD:busonotec-pass}
     driver-class-name: org.postgresql.Driver
+
+ai:
+  openai:
+    api-key: ${OPENAI_API_KEY:}
+    model: ${OPENAI_MODEL:gpt-5.2}
+    timeout-seconds: ${OPENAI_TIMEOUT_SECONDS:30}
