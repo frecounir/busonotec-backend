@@ -90,6 +90,11 @@ class ApiIntegrationTest {
 
     assertThat(recordsForEntity(entity)).isEmpty();
 
+    deleteEntityField(field);
+
+    assertThat(columnExists(jdbc, entityName.toLowerCase(Locale.ROOT), "score")).isFalse();
+    assertThat(fieldsForEntity(entity)).containsExactly("enrollmentDate");
+
     deleteBusinessEntity(entity);
 
     assertThat(tableExists(jdbc, entityName.toLowerCase(Locale.ROOT))).isFalse();
@@ -140,6 +145,7 @@ class ApiIntegrationTest {
         .contains("/api/business-entities")
         .contains("/api/business-entities/{id}")
         .contains("/api/entity-fields/{businessEntityId}")
+        .contains("/api/entity-fields/{id}")
         .contains("/api/business-entities/{businessEntityId}/records")
         .contains("/api/business-entities/{businessEntityId}/records/{recordId}")
         .contains("/api/ai/business-schema/plan")
@@ -234,6 +240,14 @@ class ApiIntegrationTest {
 
   private void deleteRecord(BusinessEntityResponse entity, Object recordId) throws Exception {
     HttpResponse<String> response = http.delete("/api/business-entities/" + entity.getId() + "/records/" + recordId);
+
+    assertThat(response.statusCode())
+        .withFailMessage(response.body())
+        .isEqualTo(204);
+  }
+
+  private void deleteEntityField(EntityFieldResponse field) throws Exception {
+    HttpResponse<String> response = http.delete("/api/entity-fields/" + field.getId());
 
     assertThat(response.statusCode())
         .withFailMessage(response.body())

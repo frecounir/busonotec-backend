@@ -5,6 +5,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 @Repository
@@ -32,6 +33,21 @@ public class EntityFieldRepository {
     );
   }
 
+  public Optional<EntityField> findById(UUID id) {
+    String sql = "SELECT id, business_entity_id, name, type FROM entity_fields WHERE id = ?";
+    List<EntityField> fields = jdbc.query(sql, (rs, rn) ->
+        new EntityField(
+            UUID.fromString(rs.getString("id")),
+            rs.getString("name"),
+            rs.getString("type"),
+            UUID.fromString(rs.getString("business_entity_id")),
+            null
+        ),
+        id
+    );
+    return fields.isEmpty() ? Optional.empty() : Optional.of(fields.get(0));
+  }
+
   public boolean existsByNameForEntity(UUID businessEntityId, String name) {
     String sql = "SELECT COUNT(1) FROM entity_fields WHERE business_entity_id = ? AND name = ?";
     Integer count = jdbc.queryForObject(sql, Integer.class, businessEntityId, name);
@@ -41,5 +57,10 @@ public class EntityFieldRepository {
   public int deleteByBusinessEntityId(UUID businessEntityId) {
     String sql = "DELETE FROM entity_fields WHERE business_entity_id = ?";
     return jdbc.update(sql, businessEntityId);
+  }
+
+  public boolean deleteById(UUID id) {
+    String sql = "DELETE FROM entity_fields WHERE id = ?";
+    return jdbc.update(sql, id) > 0;
   }
 }

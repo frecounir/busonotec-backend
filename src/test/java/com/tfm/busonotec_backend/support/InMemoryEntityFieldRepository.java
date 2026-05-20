@@ -7,6 +7,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
@@ -51,6 +52,13 @@ public final class InMemoryEntityFieldRepository extends EntityFieldRepository {
   }
 
   @Override
+  public Optional<EntityField> findById(UUID id) {
+    return fields.stream()
+        .filter(field -> id.equals(field.getId()))
+        .findFirst();
+  }
+
+  @Override
   public boolean existsByNameForEntity(UUID businessEntityId, String name) {
     return existingNamesByEntity.contains(key(businessEntityId, name));
   }
@@ -62,6 +70,17 @@ public final class InMemoryEntityFieldRepository extends EntityFieldRepository {
     savedFields.removeIf(field -> businessEntityId.equals(field.getBusinessEntityId()));
     existingNamesByEntity.removeIf(key -> key.startsWith(businessEntityId + ":"));
     return before - fields.size();
+  }
+
+  @Override
+  public boolean deleteById(UUID id) {
+    Optional<EntityField> field = findById(id);
+    field.ifPresent(value -> {
+      fields.remove(value);
+      savedFields.remove(value);
+      existingNamesByEntity.remove(key(value.getBusinessEntityId(), value.getName()));
+    });
+    return field.isPresent();
   }
 
   private String key(UUID businessEntityId, String name) {

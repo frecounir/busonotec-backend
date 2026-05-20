@@ -100,4 +100,26 @@ public class EntityFieldController {
   ) {
     return ResponseEntity.ok(service.listByEntity(businessEntityId));
   }
+
+  @Operation(
+      summary = "Delete an entity field",
+      description = "Deletes the field metadata and drops the matching column from the physical table associated with the business entity."
+  )
+  @ApiResponses({
+      @ApiResponse(responseCode = "204", description = "Entity field deleted.", content = @Content),
+      @ApiResponse(responseCode = "400", description = "Invalid entity field UUID, missing entity, or missing physical table.", content = @Content),
+      @ApiResponse(responseCode = "404", description = "Entity field not found.", content = @Content)
+  })
+  @DeleteMapping("/api/entity-fields/{id}")
+  public ResponseEntity<Void> delete(
+      @Parameter(
+          description = "Entity field UUID.",
+          example = "c5ad7a80-63bb-4b0f-9679-2c0b1f5fcf9d",
+          required = true
+      )
+      @PathVariable UUID id
+  ) {
+    service.delete(id);
+    return ResponseEntity.noContent().build();
+  }
 }

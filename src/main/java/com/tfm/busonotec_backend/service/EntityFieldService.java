@@ -61,6 +61,23 @@ public class EntityFieldService {
     return out;
   }
 
+  @Transactional
+  public void delete(UUID id) {
+    if (id == null) {
+      throw new IllegalArgumentException("Entity field id must be provided");
+    }
+    EntityField field = repository.findById(id)
+        .orElseThrow(() -> new IllegalArgumentException("Entity field not found: " + id));
+    BusinessEntity entity = entityRepository.findById(field.getBusinessEntityId())
+        .orElseThrow(() -> new IllegalArgumentException("BusinessEntity not found: " + field.getBusinessEntityId()));
+
+    dynamicSchemaService.dropColumn(entity.getName(), field.getName());
+    if (!repository.deleteById(id)) {
+      throw new IllegalArgumentException("Entity field not found: " + id);
+    }
+    log.info("Deleted field {} from entity {}", field.getName(), field.getBusinessEntityId());
+  }
+
   private void validateName(String name) {
     if (name == null || name.isBlank()) {
       log.warn("Validation failed: field name blank");

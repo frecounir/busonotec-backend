@@ -134,6 +134,33 @@ class DynamicSchemaServiceTest {
     assertThat(exception).hasMessage("Physical table does not exist for entity: Students");
   }
 
+  @Test
+  void dropColumnCreatesAlterTableStatement() {
+    registerStudentsTable();
+
+    service.dropColumn("Students", "score");
+
+    assertThat(jdbc.lastExecutedSql())
+        .isEqualTo("ALTER TABLE \"students\" DROP COLUMN IF EXISTS \"score\"");
+  }
+
+  @Test
+  void dropColumnRejectsInvalidInputs() {
+    assertThrows(IllegalArgumentException.class, () -> service.dropColumn(null, "score"));
+    assertThrows(IllegalArgumentException.class, () -> service.dropColumn("1students", "score"));
+    assertThrows(IllegalArgumentException.class, () -> service.dropColumn("Students", null));
+    assertThrows(IllegalArgumentException.class, () -> service.dropColumn("Students", "1score"));
+    assertThrows(IllegalArgumentException.class, () -> service.dropColumn("Students", "id"));
+  }
+
+  @Test
+  void dropColumnRejectsMissingPhysicalTable() {
+    IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
+        () -> service.dropColumn("Students", "score"));
+
+    assertThat(exception).hasMessage("Physical table does not exist for entity: Students");
+  }
+
   static Stream<String> invalidSqlStatements() {
     return Stream.of(
         "",

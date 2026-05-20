@@ -6,6 +6,7 @@ import com.tfm.busonotec_backend.support.InMemoryBusinessEntityRepository;
 import com.tfm.busonotec_backend.support.InMemoryEntityFieldRepository;
 import com.tfm.busonotec_backend.support.RecordingDynamicSchemaService;
 import com.tfm.busonotec_backend.support.RecordingDynamicSchemaService.AddedColumn;
+import com.tfm.busonotec_backend.support.RecordingDynamicSchemaService.DroppedColumn;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -117,6 +118,38 @@ class EntityFieldServiceTest {
     assertThat(responses)
         .extracting(EntityFieldResponse::getId)
         .containsExactly(alphaId, betaId);
+  }
+
+  @Test
+  void deleteDropsPhysicalColumnAndDeletesFieldMetadata() {
+    UUID fieldId = UUID.randomUUID();
+    fieldRepository.add(entityField(fieldId, entityId, "score", "number"));
+
+    service.delete(fieldId);
+
+    assertThat(schemaService.droppedColumns())
+        .containsExactly(new DroppedColumn(STUDENTS, "score"));
+    assertThat(fieldRepository.findById(fieldId)).isEmpty();
+  }
+
+  @Test
+  void deleteRejectsNullFieldId() {
+    IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
+        () -> service.delete(null));
+
+    assertThat(exception).hasMessage("Entity field id must be provided");
+    assertThat(schemaService.hasNoDroppedColumns()).isTrue();
+  }
+
+  @Test
+  void deleteRejectsMissingField() {
+    UUID missingId = UUID.randomUUID();
+
+    IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
+        () -> service.delete(missingId));
+
+    assertThat(exception).hasMessage("Entity field not found: " + missingId);
+    assertThat(schemaService.hasNoDroppedColumns()).isTrue();
   }
 
   static Stream<String> invalidFieldNames() {

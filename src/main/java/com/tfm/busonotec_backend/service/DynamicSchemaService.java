@@ -65,6 +65,21 @@ public class DynamicSchemaService {
     jdbc.execute(sql);
   }
 
+  public void dropColumn(String entityName, String fieldName) {
+    validateIdentifier(entityName, "entity name");
+    validateIdentifier(fieldName, "field name");
+    if ("id".equalsIgnoreCase(fieldName)) {
+      throw new IllegalArgumentException("Field name 'id' is reserved");
+    }
+    if (!entityExists(entityName)) {
+      throw new IllegalArgumentException("Physical table does not exist for entity: " + entityName);
+    }
+    String sql = "ALTER TABLE " + quote(entityName)
+        + " DROP COLUMN IF EXISTS " + quote(fieldName);
+    log.info("Dropping column {}.{} with SQL: {}", entityName, fieldName, sql);
+    jdbc.execute(sql);
+  }
+
   public void dropEntityTable(String entityName) {
     validateIdentifier(entityName, "entity name");
     String sql = "DROP TABLE IF EXISTS " + quote(entityName);

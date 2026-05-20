@@ -13,6 +13,7 @@ import java.util.Set;
 public final class RecordingDynamicSchemaService extends DynamicSchemaService {
   private final Map<String, String> statementsByEntity = new LinkedHashMap<>();
   private final List<AddedColumn> addedColumns = new ArrayList<>();
+  private final List<DroppedColumn> droppedColumns = new ArrayList<>();
   private final List<String> droppedEntities = new ArrayList<>();
   private final Set<String> existingEntities = new HashSet<>();
 
@@ -30,6 +31,11 @@ public final class RecordingDynamicSchemaService extends DynamicSchemaService {
   @Override
   public void addColumn(String entityName, String fieldName, String logicalType) {
     addedColumns.add(new AddedColumn(entityName, fieldName, logicalType));
+  }
+
+  @Override
+  public void dropColumn(String entityName, String fieldName) {
+    droppedColumns.add(new DroppedColumn(entityName, fieldName));
   }
 
   @Override
@@ -63,10 +69,21 @@ public final class RecordingDynamicSchemaService extends DynamicSchemaService {
     return addedColumns.isEmpty();
   }
 
+  public List<DroppedColumn> droppedColumns() {
+    return List.copyOf(droppedColumns);
+  }
+
+  public boolean hasNoDroppedColumns() {
+    return droppedColumns.isEmpty();
+  }
+
   public List<String> droppedEntities() {
     return List.copyOf(droppedEntities);
   }
 
   public record AddedColumn(String entityName, String fieldName, String logicalType) {
+  }
+
+  public record DroppedColumn(String entityName, String fieldName) {
   }
 }
