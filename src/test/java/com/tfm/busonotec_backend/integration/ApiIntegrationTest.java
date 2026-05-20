@@ -58,19 +58,25 @@ class ApiIntegrationTest {
     assertBusinessEntityCanBeFetched(entity);
     assertBusinessEntityAppearsInList(entityName);
 
-    EntityFieldResponse field = createEntityField(entity);
+    EntityFieldResponse field = createEntityField(entity, "score", "number");
+    EntityFieldResponse dateField = createEntityField(entity, "enrollmentDate", "date");
 
     assertThat(columnExists(jdbc, entityName.toLowerCase(Locale.ROOT), "score")).isTrue();
+    assertThat(columnExists(jdbc, entityName.toLowerCase(Locale.ROOT), "enrollmentdate")).isTrue();
     assertThat(field.getBusinessEntityId()).isEqualTo(entity.getId());
     assertThat(field.getName()).isEqualTo("score");
     assertThat(field.getType()).isEqualTo("number");
-    assertThat(fieldsForEntity(entity)).containsExactly("score");
+    assertThat(dateField.getBusinessEntityId()).isEqualTo(entity.getId());
+    assertThat(dateField.getName()).isEqualTo("enrollmentDate");
+    assertThat(dateField.getType()).isEqualTo("date");
+    assertThat(fieldsForEntity(entity)).containsExactly("enrollmentDate", "score");
 
     Map<String, Object> createdRecord = createRecord(entity, 95);
 
     assertThat(recordsForEntity(entity)).singleElement().satisfies(record -> {
       assertThat(record.get("id")).isEqualTo(createdRecord.get("id"));
       assertThat(((Number) record.get("score")).intValue()).isEqualTo(95);
+      assertThat(record.get("enrollmentdate").toString()).isEqualTo("2026-05-19");
     });
 
     Map<String, Object> updatedRecord = updateRecord(entity, createdRecord.get("id"), 100);
@@ -175,9 +181,9 @@ class ApiIntegrationTest {
     assertThat(http.readTextValues(response, "name")).doesNotContain(entityName);
   }
 
-  private EntityFieldResponse createEntityField(BusinessEntityResponse entity) throws Exception {
+  private EntityFieldResponse createEntityField(BusinessEntityResponse entity, String name, String type) throws Exception {
     HttpResponse<String> response = http.postJson("/api/fields",
-        Map.of("businessEntityId", entity.getId(), "name", "score", "type", "number"));
+        Map.of("businessEntityId", entity.getId(), "name", name, "type", type));
 
     assertOk(response);
     EntityFieldResponse field = http.readBody(response, EntityFieldResponse.class);
@@ -200,12 +206,14 @@ class ApiIntegrationTest {
   }
 
   private Map<String, Object> createRecord(BusinessEntityResponse entity, int score) throws Exception {
-    HttpResponse<String> response = http.postJson("/api/entities/" + entity.getId() + "/records", Map.of("score", score));
+    HttpResponse<String> response = http.postJson("/api/entities/" + entity.getId() + "/records",
+        Map.of("score", score, "enrollmentDate", "2026-05-19"));
 
     assertOk(response);
     Map<String, Object> record = http.readRecord(response);
     assertThat(record.get("id")).isNotNull();
     assertThat(((Number) record.get("score")).intValue()).isEqualTo(score);
+    assertThat(record.get("enrollmentdate").toString()).isEqualTo("2026-05-19");
     return record;
   }
 

@@ -7,6 +7,7 @@ import com.tfm.busonotec_backend.support.RecordingDynamicSchemaService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.time.LocalDate;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -115,6 +116,16 @@ class BusinessRecordServiceTest {
   }
 
   @Test
+  void createConvertsDateFieldStringsToLocalDate() {
+    prepareStudentsEntity();
+    fieldRepository.add(entityField(UUID.randomUUID(), entityId, "enrollmentDate", "date"));
+
+    Map<String, Object> record = service.create(entityId, Map.of("enrollmentDate", "2026-05-19"));
+
+    assertThat(record).containsEntry("enrollmentdate", LocalDate.of(2026, 5, 19));
+  }
+
+  @Test
   void createRejectsMissingRecordBody() {
     entityRepository.add(studentsEntity(entityId));
     schemaService.markEntityAsExisting(STUDENTS);
@@ -136,6 +147,20 @@ class BusinessRecordServiceTest {
         () -> service.create(entityId, Map.of("nickname", "Ana")));
 
     assertThat(exception).hasMessage("Field is not defined for entity: nickname");
+    assertThat(recordRepository.createdEntityNames()).isEmpty();
+  }
+
+  @Test
+  void createRejectsInvalidDateFieldValues() {
+    prepareStudentsEntity();
+    fieldRepository.add(entityField(UUID.randomUUID(), entityId, "enrollmentDate", "date"));
+
+    assertThat(assertThrows(IllegalArgumentException.class,
+        () -> service.create(entityId, Map.of("enrollmentDate", "19-05-2026"))))
+        .hasMessage("Invalid date value for field enrollmentdate. Expected format: yyyy-MM-dd");
+    assertThat(assertThrows(IllegalArgumentException.class,
+        () -> service.create(entityId, Map.of("enrollmentDate", 20260519))))
+        .hasMessage("Invalid date value for field enrollmentdate. Expected format: yyyy-MM-dd");
     assertThat(recordRepository.createdEntityNames()).isEmpty();
   }
 
@@ -180,6 +205,18 @@ class BusinessRecordServiceTest {
     assertThat(record).containsEntry("id", recordId)
         .containsEntry("score", 100);
     assertThat(recordRepository.updatedEntityNames()).containsExactly(STUDENTS);
+  }
+
+  @Test
+  void updateConvertsDateFieldStringsToLocalDate() {
+    prepareStudentsEntity();
+    fieldRepository.add(entityField(UUID.randomUUID(), entityId, "enrollmentDate", "date"));
+    UUID recordId = UUID.randomUUID();
+    recordRepository.add(new LinkedHashMap<>(Map.of("id", recordId, "enrollmentdate", LocalDate.of(2026, 5, 18))));
+
+    Map<String, Object> record = service.update(entityId, recordId, Map.of("enrollmentDate", "2026-05-19"));
+
+    assertThat(record).containsEntry("enrollmentdate", LocalDate.of(2026, 5, 19));
   }
 
   @Test

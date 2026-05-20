@@ -1,17 +1,18 @@
 package com.tfm.busonotec_backend.service;
 
 import com.tfm.busonotec_backend.domain.BusinessEntity;
-import com.tfm.busonotec_backend.domain.EntityField;
 import com.tfm.busonotec_backend.repository.BusinessEntityRepository;
 import com.tfm.busonotec_backend.repository.EntityFieldRepository;
 import com.tfm.busonotec_backend.repository.BusinessRecordRepository;
 import org.springframework.stereotype.Service;
 
+import java.sql.Timestamp;
+import java.time.LocalDate;
+import java.time.format.DateTimeParseException;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Set;
 import java.util.UUID;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -39,13 +40,15 @@ public class BusinessRecordService {
 
   public List<Map<String, Object>> listByBusinessEntity(UUID businessEntityId) {
     BusinessEntity entity = getBusinessEntityWithPhysicalTable(businessEntityId);
-    return recordRepository.findAllByEntityName(entity.getName());
+    return recordRepository.findAllByEntityName(entity.getName()).stream()
+        .map(record -> normalizeOutputRecord(businessEntityId, record))
+        .toList();
   }
 
   public Map<String, Object> create(UUID businessEntityId, Map<String, Object> record) {
     BusinessEntity entity = getBusinessEntityWithPhysicalTable(businessEntityId);
     Map<String, Object> valuesByColumn = normalizeRecordValues(businessEntityId, record);
-    return recordRepository.create(entity.getName(), UUID.randomUUID(), valuesByColumn);
+    return normalizeOutputRecord(businessEntityId, recordRepository.create(entity.getName(), UUID.randomUUID(), valuesByColumn));
   }
 
   public Map<String, Object> update(UUID businessEntityId, UUID recordId, Map<String, Object> record) {
@@ -60,7 +63,7 @@ public class BusinessRecordService {
     if (!updated) {
       throw new IllegalArgumentException("Record not found: " + recordId);
     }
-    return recordRepository.findByEntityNameAndId(entity.getName(), recordId);
+    return normalizeOutputRecord(businessEntityId, recordRepository.findByEntityNameAndId(entity.getName(), recordId));
   }
 
   public void delete(UUID businessEntityId, UUID recordId) {
@@ -90,24 +93,79 @@ public class BusinessRecordService {
       throw new IllegalArgumentException("Record body must be provided");
     }
 
-    Set<String> allowedFields = fieldRepository.findByBusinessEntityId(businessEntityId).stream()
-        .map(EntityField::getName)
-        .map(name -> name.toLowerCase(Locale.ROOT))
-        .collect(Collectors.toSet());
+    Map<String, String> fieldTypesByName = fieldTypesByName(businessEntityId);
     Map<String, Object> normalized = new LinkedHashMap<>();
 
     for (Map.Entry<String, Object> entry : record.entrySet()) {
       String normalizedFieldName = normalizeFieldName(entry.getKey());
-      if (!allowedFields.contains(normalizedFieldName)) {
+      String fieldType = fieldTypesByName.get(normalizedFieldName);
+      if (fieldType == null) {
         throw new IllegalArgumentException("Field is not defined for entity: " + entry.getKey());
       }
       if (normalized.containsKey(normalizedFieldName)) {
         throw new IllegalArgumentException("Duplicate field in record: " + entry.getKey());
       }
-      normalized.put(normalizedFieldName, entry.getValue());
+      normalized.put(normalizedFieldName, normalizeInputValue(normalizedFieldName, fieldType, entry.getValue()));
     }
 
     return normalized;
+  }
+
+  private Map<String, Object> normalizeOutputRecord(UUID businessEntityId, Map<String, Object> record) {
+    Map<String, String> fieldTypesByName = fieldTypesByName(businessEntityId);
+    Map<String, Object> normalized = new LinkedHashMap<>();
+
+    record.forEach((fieldName, value) -> {
+      String normalizedFieldName = fieldName.toLowerCase(Locale.ROOT);
+      String fieldType = fieldTypesByName.get(normalizedFieldName);
+      normalized.put(normalizedFieldName, normalizeOutputValue(fieldType, value));
+    });
+
+    return normalized;
+  }
+
+  private Map<String, String> fieldTypesByName(UUID businessEntityId) {
+    return fieldRepository.findByBusinessEntityId(businessEntityId).stream()
+        .collect(Collectors.toMap(
+            field -> field.getName().toLowerCase(Locale.ROOT),
+            field -> field.getType().toLowerCase(Locale.ROOT)
+        ));
+  }
+
+  private Object normalizeInputValue(String fieldName, String fieldType, Object value) {
+    if (value == null) {
+      return null;
+    }
+    if (!"date".equals(fieldType)) {
+      return value;
+    }
+    if (value instanceof LocalDate localDate) {
+      return localDate;
+    }
+    if (value instanceof String textValue) {
+      try {
+        return LocalDate.parse(textValue);
+      } catch (DateTimeParseException e) {
+        throw new IllegalArgumentException("Invalid date value for field " + fieldName + ". Expected format: yyyy-MM-dd");
+      }
+    }
+    throw new IllegalArgumentException("Invalid date value for field " + fieldName + ". Expected format: yyyy-MM-dd");
+  }
+
+  private Object normalizeOutputValue(String fieldType, Object value) {
+    if (value == null || !"date".equals(fieldType)) {
+      return value;
+    }
+    if (value instanceof LocalDate localDate) {
+      return localDate;
+    }
+    if (value instanceof java.sql.Date date) {
+      return date.toLocalDate();
+    }
+    if (value instanceof Timestamp timestamp) {
+      return timestamp.toLocalDateTime().toLocalDate();
+    }
+    return value;
   }
 
   private String normalizeFieldName(String fieldName) {
