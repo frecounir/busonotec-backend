@@ -19,7 +19,7 @@ import java.util.List;
 import java.util.UUID;
 
 @RestController
-@RequestMapping({"/api/business-entities", "/api/entities"})
+@RequestMapping("/api/business-entities")
 @Tag(
     name = "Business Entities",
     description = "Manage logical business entities and their physical database tables."

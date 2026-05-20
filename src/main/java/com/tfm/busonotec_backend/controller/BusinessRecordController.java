@@ -65,7 +65,7 @@ public class BusinessRecordController {
       @ApiResponse(responseCode = "400", description = "Invalid business entity UUID or missing physical table.", content = @Content),
       @ApiResponse(responseCode = "404", description = "Business entity not found.", content = @Content)
   })
-  @GetMapping({"/api/business-entities/{businessEntityId}/records", "/api/entities/{businessEntityId}/records"})
+  @GetMapping("/api/business-entities/{businessEntityId}/records")
   public ResponseEntity<List<Map<String, Object>>> listByBusinessEntity(
       @Parameter(
           description = "Business entity UUID.",
@@ -104,7 +104,7 @@ public class BusinessRecordController {
       @ApiResponse(responseCode = "400", description = "Invalid field, unknown field, duplicated field, reserved id, or missing physical table.", content = @Content),
       @ApiResponse(responseCode = "404", description = "Business entity not found.", content = @Content)
   })
-  @PostMapping({"/api/business-entities/{businessEntityId}/records", "/api/entities/{businessEntityId}/records"})
+  @PostMapping("/api/business-entities/{businessEntityId}/records")
   public ResponseEntity<Map<String, Object>> create(
       @Parameter(
           description = "Business entity UUID.",
@@ -163,7 +163,7 @@ public class BusinessRecordController {
       @ApiResponse(responseCode = "404", description = "Business entity or record not found.", content = @Content)
   })
   @RequestMapping(
-      value = {"/api/business-entities/{businessEntityId}/records/{recordId}", "/api/entities/{businessEntityId}/records/{recordId}"},
+      value = "/api/business-entities/{businessEntityId}/records/{recordId}",
       method = {RequestMethod.PUT, RequestMethod.PATCH}
   )
   public ResponseEntity<Map<String, Object>> update(
@@ -210,7 +210,7 @@ public class BusinessRecordController {
       @ApiResponse(responseCode = "400", description = "Invalid business entity UUID, invalid record UUID, or missing physical table.", content = @Content),
       @ApiResponse(responseCode = "404", description = "Business entity or record not found.", content = @Content)
   })
-  @DeleteMapping({"/api/business-entities/{businessEntityId}/records/{recordId}", "/api/entities/{businessEntityId}/records/{recordId}"})
+  @DeleteMapping("/api/business-entities/{businessEntityId}/records/{recordId}")
   public ResponseEntity<Void> delete(
       @Parameter(
           description = "Business entity UUID.",

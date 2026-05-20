@@ -51,7 +51,7 @@ public class EntityFieldController {
       ),
       @ApiResponse(responseCode = "400", description = "Invalid field name, unsupported type, duplicated field, or missing entity.", content = @Content)
   })
-  @PostMapping({"/api/entity-fields", "/api/fields"})
+  @PostMapping("/api/entity-fields")
   public ResponseEntity<EntityFieldResponse> create(
       @io.swagger.v3.oas.annotations.parameters.RequestBody(
           required = true,
@@ -89,7 +89,7 @@ public class EntityFieldController {
       ),
       @ApiResponse(responseCode = "400", description = "Invalid business entity UUID.", content = @Content)
   })
-  @GetMapping({"/api/entity-fields/{businessEntityId}", "/api/entities/{businessEntityId}/fields"})
+  @GetMapping("/api/entity-fields/{businessEntityId}")
   public ResponseEntity<List<EntityFieldResponse>> listByEntity(
       @Parameter(
           description = "Business entity UUID.",

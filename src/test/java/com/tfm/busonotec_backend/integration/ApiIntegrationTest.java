@@ -143,11 +143,13 @@ class ApiIntegrationTest {
         .contains("/api/business-entities/{businessEntityId}/records")
         .contains("/api/business-entities/{businessEntityId}/records/{recordId}")
         .contains("/api/ai/business-schema/plan")
-        .contains("/api/ai/business-schema/execute");
+        .contains("/api/ai/business-schema/execute")
+        .doesNotContain("\"/api/entities")
+        .doesNotContain("\"/api/fields");
   }
 
   private BusinessEntityResponse createBusinessEntity(String entityName) throws Exception {
-    HttpResponse<String> response = http.postJson("/api/entities",
+    HttpResponse<String> response = http.postJson("/api/business-entities",
         Map.of("name", entityName, "description", "Student records"));
 
     assertOk(response);
@@ -182,7 +184,7 @@ class ApiIntegrationTest {
   }
 
   private EntityFieldResponse createEntityField(BusinessEntityResponse entity, String name, String type) throws Exception {
-    HttpResponse<String> response = http.postJson("/api/fields",
+    HttpResponse<String> response = http.postJson("/api/entity-fields",
         Map.of("businessEntityId", entity.getId(), "name", name, "type", type));
 
     assertOk(response);
@@ -199,14 +201,14 @@ class ApiIntegrationTest {
   }
 
   private List<Map<String, Object>> recordsForEntity(BusinessEntityResponse entity) throws Exception {
-    HttpResponse<String> response = http.get("/api/entities/" + entity.getId() + "/records");
+    HttpResponse<String> response = http.get("/api/business-entities/" + entity.getId() + "/records");
 
     assertOk(response);
     return http.readRows(response);
   }
 
   private Map<String, Object> createRecord(BusinessEntityResponse entity, int score) throws Exception {
-    HttpResponse<String> response = http.postJson("/api/entities/" + entity.getId() + "/records",
+    HttpResponse<String> response = http.postJson("/api/business-entities/" + entity.getId() + "/records",
         Map.of("score", score, "enrollmentDate", "2026-05-19"));
 
     assertOk(response);
@@ -219,7 +221,7 @@ class ApiIntegrationTest {
 
   private Map<String, Object> updateRecord(BusinessEntityResponse entity, Object recordId, int score) throws Exception {
     HttpResponse<String> response = http.patchJson(
-        "/api/entities/" + entity.getId() + "/records/" + recordId,
+        "/api/business-entities/" + entity.getId() + "/records/" + recordId,
         Map.of("score", score)
     );
 
@@ -231,7 +233,7 @@ class ApiIntegrationTest {
   }
 
   private void deleteRecord(BusinessEntityResponse entity, Object recordId) throws Exception {
-    HttpResponse<String> response = http.delete("/api/entities/" + entity.getId() + "/records/" + recordId);
+    HttpResponse<String> response = http.delete("/api/business-entities/" + entity.getId() + "/records/" + recordId);
 
     assertThat(response.statusCode())
         .withFailMessage(response.body())
@@ -239,7 +241,7 @@ class ApiIntegrationTest {
   }
 
   private void deleteBusinessEntity(BusinessEntityResponse entity) throws Exception {
-    HttpResponse<String> response = http.delete("/api/entities/" + entity.getId());
+    HttpResponse<String> response = http.delete("/api/business-entities/" + entity.getId());
 
     assertThat(response.statusCode())
         .withFailMessage(response.body())
