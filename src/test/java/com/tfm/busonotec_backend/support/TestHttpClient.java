@@ -16,7 +16,7 @@ import java.util.Map;
 public final class TestHttpClient {
   private static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(10);
 
-  private final ObjectMapper objectMapper = new ObjectMapper();
+  private final ObjectMapper objectMapper = new ObjectMapper().findAndRegisterModules();
   private final HttpClient client;
   private final int port;
 

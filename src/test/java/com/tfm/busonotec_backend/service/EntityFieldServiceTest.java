@@ -12,6 +12,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
+import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Stream;
@@ -53,6 +55,31 @@ class EntityFieldServiceTest {
     });
   }
 
+  @Test
+  void createPersistsValidationMetadata() {
+    EntityFieldResponse response = service.create(entityFieldRequest(
+        entityId,
+        "nickname",
+        "string",
+        true,
+        3,
+        120,
+        null,
+        null,
+        null,
+        null
+    ));
+
+    assertThat(response.isRequired()).isTrue();
+    assertThat(response.getMinLength()).isEqualTo(3);
+    assertThat(response.getMaxLength()).isEqualTo(120);
+    assertThat(fieldRepository.savedFields()).singleElement().satisfies(saved -> {
+      assertThat(saved.isRequired()).isTrue();
+      assertThat(saved.getMinLength()).isEqualTo(3);
+      assertThat(saved.getMaxLength()).isEqualTo(120);
+    });
+  }
+
   @ParameterizedTest
   @MethodSource("invalidFieldNames")
   void createRejectsInvalidNames(String fieldName) {
@@ -70,6 +97,45 @@ class EntityFieldServiceTest {
         () -> service.create(entityFieldRequest(entityId, "email", fieldType)));
 
     assertMessageContainsAnyOf(exception, "Field type must be provided", "Unsupported field type");
+    assertCreateHadNoSideEffects();
+  }
+
+  @Test
+  void createRejectsValidationRulesForWrongTypes() {
+    assertThat(assertThrows(IllegalArgumentException.class,
+        () -> service.create(entityFieldRequest(entityId, "score", "number", null, 1, null, null, null, null, null))))
+        .hasMessage("Length validations are only supported for string fields");
+    assertThat(assertThrows(IllegalArgumentException.class,
+        () -> service.create(entityFieldRequest(entityId, "active", "boolean", null, null, null, BigDecimal.ZERO, null, null, null))))
+        .hasMessage("Numeric validations are only supported for number fields");
+    assertThat(assertThrows(IllegalArgumentException.class,
+        () -> service.create(entityFieldRequest(entityId, "name", "string", null, null, null, null, null, LocalDate.now(), null))))
+        .hasMessage("Date validations are only supported for date fields");
+    assertCreateHadNoSideEffects();
+  }
+
+  @Test
+  void createRejectsInvertedValidationRanges() {
+    assertThat(assertThrows(IllegalArgumentException.class,
+        () -> service.create(entityFieldRequest(entityId, "name", "string", null, 5, 3, null, null, null, null))))
+        .hasMessage("Minimum length must be less than or equal to maximum length");
+    assertThat(assertThrows(IllegalArgumentException.class,
+        () -> service.create(entityFieldRequest(entityId, "score", "number", null, null, null, BigDecimal.TEN, BigDecimal.ONE, null, null))))
+        .hasMessage("Minimum value must be less than or equal to maximum value");
+    assertThat(assertThrows(IllegalArgumentException.class,
+        () -> service.create(entityFieldRequest(entityId, "birthDate", "date", null, null, null, null, null, LocalDate.of(2026, 12, 31), LocalDate.of(2026, 1, 1)))))
+        .hasMessage("Minimum date must be less than or equal to maximum date");
+    assertCreateHadNoSideEffects();
+  }
+
+  @Test
+  void createRejectsNegativeLengthRanges() {
+    assertThat(assertThrows(IllegalArgumentException.class,
+        () -> service.create(entityFieldRequest(entityId, "name", "string", null, -1, null, null, null, null, null))))
+        .hasMessage("Minimum length must be greater than or equal to 0");
+    assertThat(assertThrows(IllegalArgumentException.class,
+        () -> service.create(entityFieldRequest(entityId, "name", "string", null, null, -1, null, null, null, null))))
+        .hasMessage("Maximum length must be greater than or equal to 0");
     assertCreateHadNoSideEffects();
   }
 

@@ -6,6 +6,8 @@ import com.tfm.busonotec_backend.dto.EntityFieldRequest;
 import com.tfm.busonotec_backend.dto.EntityFieldResponse;
 import org.junit.jupiter.api.Test;
 
+import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -37,14 +39,29 @@ class DomainDtoTest {
     empty.setType("string");
     empty.setBusinessEntityId(entityId);
     empty.setDetail(detail);
+    empty.setRequired(true);
+    empty.setMinLength(3);
+    empty.setMaxLength(120);
+    empty.setMinValue(BigDecimal.ONE);
+    empty.setMaxValue(BigDecimal.TEN);
+    empty.setMinDate(LocalDate.of(2026, 1, 1));
+    empty.setMaxDate(LocalDate.of(2026, 12, 31));
 
     assertEntityField(empty, id, entityId, "email", "string");
     assertThat(empty.getDetail()).isEqualTo(detail);
+    assertThat(empty.isRequired()).isTrue();
+    assertThat(empty.getMinLength()).isEqualTo(3);
+    assertThat(empty.getMaxLength()).isEqualTo(120);
+    assertThat(empty.getMinValue()).isEqualByComparingTo(BigDecimal.ONE);
+    assertThat(empty.getMaxValue()).isEqualByComparingTo(BigDecimal.TEN);
+    assertThat(empty.getMinDate()).isEqualTo(LocalDate.of(2026, 1, 1));
+    assertThat(empty.getMaxDate()).isEqualTo(LocalDate.of(2026, 12, 31));
 
     EntityField created = new EntityField(id, "score", "number", entityId, null);
 
     assertEntityField(created, id, entityId, "score", "number");
     assertThat(created.getDetail()).isNull();
+    assertThat(created.isRequired()).isFalse();
   }
 
   @Test
@@ -63,13 +80,27 @@ class DomainDtoTest {
   void requestDtosExposeConstructorValues() {
     UUID entityId = UUID.randomUUID();
     BusinessEntityRequest entityRequest = new BusinessEntityRequest("Students", "Student data");
-    EntityFieldRequest fieldRequest = new EntityFieldRequest(entityId, "email", "string");
+    EntityFieldRequest fieldRequest = new EntityFieldRequest(
+        entityId,
+        "email",
+        "string",
+        true,
+        3,
+        120,
+        null,
+        null,
+        null,
+        null
+    );
 
     assertThat(entityRequest.getName()).isEqualTo("Students");
     assertThat(entityRequest.getDescription()).isEqualTo("Student data");
     assertThat(fieldRequest.getBusinessEntityId()).isEqualTo(entityId);
     assertThat(fieldRequest.getName()).isEqualTo("email");
     assertThat(fieldRequest.getType()).isEqualTo("string");
+    assertThat(fieldRequest.getRequired()).isTrue();
+    assertThat(fieldRequest.getMinLength()).isEqualTo(3);
+    assertThat(fieldRequest.getMaxLength()).isEqualTo(120);
   }
 
   @Test
@@ -86,6 +117,13 @@ class DomainDtoTest {
     fieldResponse.setBusinessEntityId(entityId);
     fieldResponse.setName("email");
     fieldResponse.setType("string");
+    fieldResponse.setRequired(true);
+    fieldResponse.setMinLength(3);
+    fieldResponse.setMaxLength(120);
+    fieldResponse.setMinValue(BigDecimal.ONE);
+    fieldResponse.setMaxValue(BigDecimal.TEN);
+    fieldResponse.setMinDate(LocalDate.of(2026, 1, 1));
+    fieldResponse.setMaxDate(LocalDate.of(2026, 12, 31));
 
     assertBusinessEntityResponse(entityResponse, entityId, "Students", "Student data");
     assertBusinessEntityResponse(
@@ -95,6 +133,13 @@ class DomainDtoTest {
         "Activity data"
     );
     assertEntityFieldResponse(fieldResponse, fieldId, entityId, "email", "string");
+    assertThat(fieldResponse.isRequired()).isTrue();
+    assertThat(fieldResponse.getMinLength()).isEqualTo(3);
+    assertThat(fieldResponse.getMaxLength()).isEqualTo(120);
+    assertThat(fieldResponse.getMinValue()).isEqualByComparingTo(BigDecimal.ONE);
+    assertThat(fieldResponse.getMaxValue()).isEqualByComparingTo(BigDecimal.TEN);
+    assertThat(fieldResponse.getMinDate()).isEqualTo(LocalDate.of(2026, 1, 1));
+    assertThat(fieldResponse.getMaxDate()).isEqualTo(LocalDate.of(2026, 12, 31));
     assertEntityFieldResponse(
         new EntityFieldResponse(fieldId, entityId, "score", "number"),
         fieldId,

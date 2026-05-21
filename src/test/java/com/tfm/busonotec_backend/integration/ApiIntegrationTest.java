@@ -19,6 +19,9 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
 
 import java.net.http.HttpResponse;
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -58,17 +61,32 @@ class ApiIntegrationTest {
     assertBusinessEntityCanBeFetched(entity);
     assertBusinessEntityAppearsInList(entityName);
 
-    EntityFieldResponse field = createEntityField(entity, "score", "number");
-    EntityFieldResponse dateField = createEntityField(entity, "enrollmentDate", "date");
+    EntityFieldResponse field = createEntityField(
+        entity,
+        "score",
+        "number",
+        Map.of("required", true, "minValue", 0, "maxValue", 100)
+    );
+    EntityFieldResponse dateField = createEntityField(
+        entity,
+        "enrollmentDate",
+        "date",
+        Map.of("minDate", "2026-01-01", "maxDate", "2026-12-31")
+    );
 
     assertThat(columnExists(jdbc, entityName.toLowerCase(Locale.ROOT), "score")).isTrue();
     assertThat(columnExists(jdbc, entityName.toLowerCase(Locale.ROOT), "enrollmentdate")).isTrue();
     assertThat(field.getBusinessEntityId()).isEqualTo(entity.getId());
     assertThat(field.getName()).isEqualTo("score");
     assertThat(field.getType()).isEqualTo("number");
+    assertThat(field.isRequired()).isTrue();
+    assertThat(field.getMinValue()).isEqualByComparingTo(BigDecimal.ZERO);
+    assertThat(field.getMaxValue()).isEqualByComparingTo(BigDecimal.valueOf(100));
     assertThat(dateField.getBusinessEntityId()).isEqualTo(entity.getId());
     assertThat(dateField.getName()).isEqualTo("enrollmentDate");
     assertThat(dateField.getType()).isEqualTo("date");
+    assertThat(dateField.getMinDate()).isEqualTo(LocalDate.of(2026, 1, 1));
+    assertThat(dateField.getMaxDate()).isEqualTo(LocalDate.of(2026, 12, 31));
     assertThat(fieldsForEntity(entity)).containsExactly("enrollmentDate", "score");
 
     Map<String, Object> createdRecord = createRecord(entity, 95);
@@ -190,8 +208,22 @@ class ApiIntegrationTest {
   }
 
   private EntityFieldResponse createEntityField(BusinessEntityResponse entity, String name, String type) throws Exception {
-    HttpResponse<String> response = http.postJson("/api/entity-fields",
-        Map.of("businessEntityId", entity.getId(), "name", name, "type", type));
+    return createEntityField(entity, name, type, Map.of());
+  }
+
+  private EntityFieldResponse createEntityField(
+      BusinessEntityResponse entity,
+      String name,
+      String type,
+      Map<String, Object> validationRules
+  ) throws Exception {
+    Map<String, Object> payload = new LinkedHashMap<>();
+    payload.put("businessEntityId", entity.getId());
+    payload.put("name", name);
+    payload.put("type", type);
+    payload.putAll(validationRules);
+
+    HttpResponse<String> response = http.postJson("/api/entity-fields", payload);
 
     assertOk(response);
     EntityFieldResponse field = http.readBody(response, EntityFieldResponse.class);

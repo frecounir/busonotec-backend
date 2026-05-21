@@ -5,6 +5,8 @@ import com.tfm.busonotec_backend.domain.EntityField;
 import com.tfm.busonotec_backend.dto.BusinessEntityRequest;
 import com.tfm.busonotec_backend.dto.EntityFieldRequest;
 
+import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.UUID;
 
 public final class TestFixtures {
@@ -30,8 +32,39 @@ public final class TestFixtures {
     return new EntityField(id, name, type, entityId, null);
   }
 
+  public static EntityField entityField(
+      UUID id,
+      UUID entityId,
+      String name,
+      String type,
+      boolean required,
+      Integer minLength,
+      Integer maxLength,
+      BigDecimal minValue,
+      BigDecimal maxValue,
+      LocalDate minDate,
+      LocalDate maxDate
+  ) {
+    return new EntityField(id, name, type, entityId, null, required, minLength, maxLength, minValue, maxValue, minDate, maxDate);
+  }
+
   public static EntityFieldRequest entityFieldRequest(UUID entityId, String name, String type) {
     return new EntityFieldRequest(entityId, name, type);
+  }
+
+  public static EntityFieldRequest entityFieldRequest(
+      UUID entityId,
+      String name,
+      String type,
+      Boolean required,
+      Integer minLength,
+      Integer maxLength,
+      BigDecimal minValue,
+      BigDecimal maxValue,
+      LocalDate minDate,
+      LocalDate maxDate
+  ) {
+    return new EntityFieldRequest(entityId, name, type, required, minLength, maxLength, minValue, maxValue, minDate, maxDate);
   }
 
   public static String uniqueEntityName(String prefix) {

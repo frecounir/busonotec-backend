@@ -11,6 +11,7 @@ import com.tfm.busonotec_backend.support.RecordingDynamicSchemaService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -52,6 +53,43 @@ class AiBusinessSchemaServiceTest {
   }
 
   @Test
+  void createPlanFromPromptRemovesValidationRulesThatDoNotApplyToFieldType() {
+    agentClient.plan = new AiBusinessSchemaPlan(List.of(new AiBusinessEntityDefinition(
+        "Estudiantes",
+        "Registros de estudiantes",
+        List.of(
+            new AiEntityFieldDefinition("puntaje", "number", true, 3, 120, BigDecimal.ZERO, BigDecimal.valueOf(100), null, null),
+            new AiEntityFieldDefinition("activo", "boolean", false, 1, null, BigDecimal.ZERO, null, null, null),
+            new AiEntityFieldDefinition("nombre", "string", true, 2, 80, BigDecimal.ZERO, null, null, null)
+        )
+    )));
+
+    AiBusinessSchemaPlan plan = service.createPlanFromPrompt(new AiBusinessSchemaRequest("Crea esquema de estudiantes"));
+
+    assertThat(plan.businessEntities()).singleElement().satisfies(entity -> {
+      assertThat(entity.fields()).element(0).satisfies(field -> {
+        assertThat(field.type()).isEqualTo("number");
+        assertThat(field.minLength()).isNull();
+        assertThat(field.maxLength()).isNull();
+        assertThat(field.minValue()).isEqualByComparingTo(BigDecimal.ZERO);
+        assertThat(field.maxValue()).isEqualByComparingTo(BigDecimal.valueOf(100));
+      });
+      assertThat(entity.fields()).element(1).satisfies(field -> {
+        assertThat(field.type()).isEqualTo("boolean");
+        assertThat(field.minLength()).isNull();
+        assertThat(field.minValue()).isNull();
+      });
+      assertThat(entity.fields()).element(2).satisfies(field -> {
+        assertThat(field.type()).isEqualTo("string");
+        assertThat(field.minLength()).isEqualTo(2);
+        assertThat(field.maxLength()).isEqualTo(80);
+        assertThat(field.minValue()).isNull();
+      });
+    });
+    assertThat(entityRepository.hasNoSavedEntities()).isTrue();
+  }
+
+  @Test
   void executePlanCreatesEntitiesAndFieldsFromApprovedPlan() {
     AiBusinessSchemaResponse response = service.executePlan(validPlan());
 
@@ -59,12 +97,22 @@ class AiBusinessSchemaServiceTest {
     assertThat(response.createdBusinessEntities()).singleElement().satisfies(created -> {
       assertThat(created.businessEntity().getName()).isEqualTo("Estudiantes");
       assertThat(created.fields()).extracting("name").containsExactly("puntaje", "activo");
+      assertThat(created.fields()).first().satisfies(field -> {
+        assertThat(field.isRequired()).isTrue();
+        assertThat(field.getMinValue()).isEqualByComparingTo(BigDecimal.ZERO);
+        assertThat(field.getMaxValue()).isEqualByComparingTo(BigDecimal.valueOf(100));
+      });
     });
     assertThat(entityRepository.savedEntities()).singleElement()
         .satisfies(entity -> assertThat(entity.getName()).isEqualTo("Estudiantes"));
     assertThat(fieldRepository.savedFields())
         .extracting("name")
         .containsExactly("puntaje", "activo");
+    assertThat(fieldRepository.savedFields()).first().satisfies(field -> {
+      assertThat(field.isRequired()).isTrue();
+      assertThat(field.getMinValue()).isEqualByComparingTo(BigDecimal.ZERO);
+      assertThat(field.getMaxValue()).isEqualByComparingTo(BigDecimal.valueOf(100));
+    });
     assertThat(schemaService.statementFor("Estudiantes")).contains("CREATE TABLE IF NOT EXISTS \"estudiantes\" (id UUID PRIMARY KEY)");
     assertThat(schemaService.addedColumns())
         .extracting(RecordingDynamicSchemaService.AddedColumn::fieldName)
@@ -110,6 +158,12 @@ class AiBusinessSchemaServiceTest {
         )))),
         "AI response contains unsupported field type: currency"
     );
+    assertInvalidPlan(
+        new AiBusinessSchemaPlan(List.of(new AiBusinessEntityDefinition("Estudiantes", "Registros de estudiantes", List.of(
+            new AiEntityFieldDefinition("puntaje", "number", true, null, null, BigDecimal.TEN, BigDecimal.ONE, null, null)
+        )))),
+        "AI response minimum value must be less than or equal to maximum value"
+    );
   }
 
   @Test
@@ -144,7 +198,7 @@ class AiBusinessSchemaServiceTest {
   private AiBusinessSchemaPlan validPlan() {
     return new AiBusinessSchemaPlan(List.of(
         new AiBusinessEntityDefinition("Estudiantes", "Registros de estudiantes", List.of(
-            new AiEntityFieldDefinition("puntaje", "number"),
+            new AiEntityFieldDefinition("puntaje", "number", true, null, null, BigDecimal.ZERO, BigDecimal.valueOf(100), null, null),
             new AiEntityFieldDefinition("activo", "boolean")
         ))
     ));

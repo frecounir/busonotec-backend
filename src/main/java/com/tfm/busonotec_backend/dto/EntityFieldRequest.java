@@ -4,6 +4,8 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;
 
+import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.UUID;
 
 /**
@@ -37,16 +39,62 @@ public class EntityFieldRequest {
   )
   private final String type;
 
+  @Schema(description = "Whether the field must be present and non-null when creating records.", example = "true")
+  private final Boolean required;
+
+  @Schema(description = "Minimum text length. Only valid for string fields.", example = "3", minimum = "0")
+  private final Integer minLength;
+
+  @Schema(description = "Maximum text length. Only valid for string fields.", example = "120", minimum = "0")
+  private final Integer maxLength;
+
+  @Schema(description = "Minimum numeric value. Only valid for number fields.", example = "0")
+  private final BigDecimal minValue;
+
+  @Schema(description = "Maximum numeric value. Only valid for number fields.", example = "100")
+  private final BigDecimal maxValue;
+
+  @Schema(description = "Minimum date value. Only valid for date fields.", example = "2026-01-01", format = "date")
+  private final LocalDate minDate;
+
+  @Schema(description = "Maximum date value. Only valid for date fields.", example = "2026-12-31", format = "date")
+  private final LocalDate maxDate;
+
+  public EntityFieldRequest(UUID businessEntityId, String name, String type) {
+    this(businessEntityId, name, type, null, null, null, null, null, null, null);
+  }
+
   @JsonCreator
   public EntityFieldRequest(@JsonProperty("businessEntityId") UUID businessEntityId,
                             @JsonProperty("name") String name,
-                            @JsonProperty("type") String type) {
+                            @JsonProperty("type") String type,
+                            @JsonProperty("required") Boolean required,
+                            @JsonProperty("minLength") Integer minLength,
+                            @JsonProperty("maxLength") Integer maxLength,
+                            @JsonProperty("minValue") BigDecimal minValue,
+                            @JsonProperty("maxValue") BigDecimal maxValue,
+                            @JsonProperty("minDate") LocalDate minDate,
+                            @JsonProperty("maxDate") LocalDate maxDate) {
     this.businessEntityId = businessEntityId;
     this.name = name;
     this.type = type;
+    this.required = required;
+    this.minLength = minLength;
+    this.maxLength = maxLength;
+    this.minValue = minValue;
+    this.maxValue = maxValue;
+    this.minDate = minDate;
+    this.maxDate = maxDate;
   }
 
   public UUID getBusinessEntityId() { return businessEntityId; }
   public String getName() { return name; }
   public String getType() { return type; }
+  public Boolean getRequired() { return required; }
+  public Integer getMinLength() { return minLength; }
+  public Integer getMaxLength() { return maxLength; }
+  public BigDecimal getMinValue() { return minValue; }
+  public BigDecimal getMaxValue() { return maxValue; }
+  public LocalDate getMinDate() { return minDate; }
+  public LocalDate getMaxDate() { return maxDate; }
 }

@@ -7,6 +7,7 @@ import com.tfm.busonotec_backend.support.RecordingDynamicSchemaService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -162,6 +163,110 @@ class BusinessRecordServiceTest {
         () -> service.create(entityId, Map.of("enrollmentDate", 20260519))))
         .hasMessage("Invalid date value for field enrollmentdate. Expected format: yyyy-MM-dd");
     assertThat(recordRepository.createdEntityNames()).isEmpty();
+  }
+
+  @Test
+  void createRejectsMissingOrNullRequiredFields() {
+    prepareStudentsEntity();
+    fieldRepository.add(entityField(UUID.randomUUID(), entityId, "email", "string", true, null, null, null, null, null, null));
+
+    assertThat(assertThrows(IllegalArgumentException.class,
+        () -> service.create(entityId, Map.of())))
+        .hasMessage("Required field is missing: email");
+
+    Map<String, Object> recordWithNullEmail = new LinkedHashMap<>();
+    recordWithNullEmail.put("email", null);
+
+    assertThat(assertThrows(IllegalArgumentException.class,
+        () -> service.create(entityId, recordWithNullEmail)))
+        .hasMessage("Required field must not be null: email");
+    assertThat(recordRepository.createdEntityNames()).isEmpty();
+  }
+
+  @Test
+  void createValidatesStringLengthRules() {
+    prepareStudentsEntity();
+    fieldRepository.add(entityField(UUID.randomUUID(), entityId, "nickname", "string", false, 3, 5, null, null, null, null));
+
+    assertThat(assertThrows(IllegalArgumentException.class,
+        () -> service.create(entityId, Map.of("nickname", "Al"))))
+        .hasMessage("String value for field nickname is shorter than minimum length 3");
+    assertThat(assertThrows(IllegalArgumentException.class,
+        () -> service.create(entityId, Map.of("nickname", "Alejandro"))))
+        .hasMessage("String value for field nickname exceeds maximum length 5");
+    assertThat(assertThrows(IllegalArgumentException.class,
+        () -> service.create(entityId, Map.of("nickname", 123))))
+        .hasMessage("Invalid string value for field nickname");
+    assertThat(recordRepository.createdEntityNames()).isEmpty();
+  }
+
+  @Test
+  void createValidatesNumberRangeRules() {
+    prepareStudentsEntity();
+    fieldRepository.add(entityField(UUID.randomUUID(), entityId, "score", "number", false, null, null, BigDecimal.ZERO, BigDecimal.valueOf(100), null, null));
+
+    assertThat(assertThrows(IllegalArgumentException.class,
+        () -> service.create(entityId, Map.of("score", -1))))
+        .hasMessage("Number value for field score is lower than minimum value 0");
+    assertThat(assertThrows(IllegalArgumentException.class,
+        () -> service.create(entityId, Map.of("score", 101))))
+        .hasMessage("Number value for field score exceeds maximum value 100");
+    assertThat(assertThrows(IllegalArgumentException.class,
+        () -> service.create(entityId, Map.of("score", "95"))))
+        .hasMessage("Invalid number value for field score");
+    assertThat(recordRepository.createdEntityNames()).isEmpty();
+  }
+
+  @Test
+  void createValidatesBooleanValues() {
+    prepareStudentsEntity();
+    fieldRepository.add(entityField(UUID.randomUUID(), entityId, "active", "boolean"));
+
+    assertThat(assertThrows(IllegalArgumentException.class,
+        () -> service.create(entityId, Map.of("active", "true"))))
+        .hasMessage("Invalid boolean value for field active");
+    assertThat(recordRepository.createdEntityNames()).isEmpty();
+  }
+
+  @Test
+  void createValidatesDateRangeRules() {
+    prepareStudentsEntity();
+    fieldRepository.add(entityField(
+        UUID.randomUUID(),
+        entityId,
+        "enrollmentDate",
+        "date",
+        false,
+        null,
+        null,
+        null,
+        null,
+        LocalDate.of(2026, 1, 1),
+        LocalDate.of(2026, 12, 31)
+    ));
+
+    assertThat(assertThrows(IllegalArgumentException.class,
+        () -> service.create(entityId, Map.of("enrollmentDate", "2025-12-31"))))
+        .hasMessage("Date value for field enrollmentDate is before minimum date 2026-01-01");
+    assertThat(assertThrows(IllegalArgumentException.class,
+        () -> service.create(entityId, Map.of("enrollmentDate", "2027-01-01"))))
+        .hasMessage("Date value for field enrollmentDate is after maximum date 2026-12-31");
+    assertThat(recordRepository.createdEntityNames()).isEmpty();
+  }
+
+  @Test
+  void updateRejectsNullRequiredFields() {
+    prepareStudentsEntity();
+    UUID recordId = UUID.randomUUID();
+    fieldRepository.add(entityField(UUID.randomUUID(), entityId, "email", "string", true, null, null, null, null, null, null));
+    recordRepository.add(new LinkedHashMap<>(Map.of("id", recordId, "email", "ana@example.com")));
+    Map<String, Object> updateWithNullEmail = new LinkedHashMap<>();
+    updateWithNullEmail.put("email", null);
+
+    assertThat(assertThrows(IllegalArgumentException.class,
+        () -> service.update(entityId, recordId, updateWithNullEmail)))
+        .hasMessage("Required field must not be null: email");
+    assertThat(recordRepository.updatedEntityNames()).isEmpty();
   }
 
   @Test

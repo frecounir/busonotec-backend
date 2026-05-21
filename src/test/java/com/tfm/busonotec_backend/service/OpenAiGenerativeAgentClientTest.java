@@ -8,6 +8,8 @@ import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -18,7 +20,7 @@ class OpenAiGenerativeAgentClientTest {
 
   @BeforeEach
   void setUp() {
-    objectMapper = new ObjectMapper();
+    objectMapper = new ObjectMapper().findAndRegisterModules();
     gateway = new StubOpenAiGateway();
   }
 
@@ -31,7 +33,17 @@ class OpenAiGenerativeAgentClientTest {
               "name": "Estudiantes",
               "description": "Registros de estudiantes",
               "fields": [
-                { "name": "puntaje", "type": "number" }
+                {
+                  "name": "puntaje",
+                  "type": "number",
+                  "required": true,
+                  "minLength": null,
+                  "maxLength": null,
+                  "minValue": 0,
+                  "maxValue": 100,
+                  "minDate": null,
+                  "maxDate": null
+                }
               ]
             }
           ]
@@ -46,6 +58,9 @@ class OpenAiGenerativeAgentClientTest {
       assertThat(entity.fields()).singleElement().satisfies(field -> {
         assertThat(field.name()).isEqualTo("puntaje");
         assertThat(field.type()).isEqualTo("number");
+        assertThat(field.required()).isTrue();
+        assertThat(field.minValue()).isEqualByComparingTo("0");
+        assertThat(field.maxValue()).isEqualByComparingTo("100");
       });
     });
     JsonNode requestBody = objectMapper.readTree(gateway.requestBody);
@@ -55,8 +70,17 @@ class OpenAiGenerativeAgentClientTest {
     assertThat(requestBody.path("input").asText()).isEqualTo("Crea estudiantes");
     assertThat(requestBody.path("instructions").asText()).contains("Siempre responde en espanol");
     assertThat(requestBody.path("instructions").asText()).contains("No traduzcas conceptos del usuario al ingles");
+    assertThat(requestBody.path("instructions").asText()).contains("Para cada campo decide si required debe ser true o false");
     assertThat(requestBody.path("text").path("format").path("type").asText()).isEqualTo("json_schema");
     assertThat(requestBody.path("text").path("format").path("strict").asBoolean()).isTrue();
+    JsonNode fieldRequiredProperties = requestBody.path("text").path("format").path("schema")
+        .path("properties").path("businessEntities")
+        .path("items").path("properties").path("fields")
+        .path("items").path("required");
+    List<String> requiredProperties = new ArrayList<>();
+    fieldRequiredProperties.forEach(property -> requiredProperties.add(property.asText()));
+    assertThat(requiredProperties)
+        .contains("required", "minLength", "maxLength", "minValue", "maxValue", "minDate", "maxDate");
   }
 
   @Test

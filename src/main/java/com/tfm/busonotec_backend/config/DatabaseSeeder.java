@@ -31,9 +31,24 @@ public class DatabaseSeeder {
           id UUID PRIMARY KEY,
           business_entity_id UUID NOT NULL,
           name TEXT NOT NULL,
-          type TEXT NOT NULL
+          type TEXT NOT NULL,
+          is_required BOOLEAN NOT NULL DEFAULT FALSE,
+          min_length INTEGER,
+          max_length INTEGER,
+          min_value NUMERIC,
+          max_value NUMERIC,
+          min_date DATE,
+          max_date DATE
         )
         """);
+
+    jdbc.execute("ALTER TABLE entity_fields ADD COLUMN IF NOT EXISTS is_required BOOLEAN NOT NULL DEFAULT FALSE");
+    jdbc.execute("ALTER TABLE entity_fields ADD COLUMN IF NOT EXISTS min_length INTEGER");
+    jdbc.execute("ALTER TABLE entity_fields ADD COLUMN IF NOT EXISTS max_length INTEGER");
+    jdbc.execute("ALTER TABLE entity_fields ADD COLUMN IF NOT EXISTS min_value NUMERIC");
+    jdbc.execute("ALTER TABLE entity_fields ADD COLUMN IF NOT EXISTS max_value NUMERIC");
+    jdbc.execute("ALTER TABLE entity_fields ADD COLUMN IF NOT EXISTS min_date DATE");
+    jdbc.execute("ALTER TABLE entity_fields ADD COLUMN IF NOT EXISTS max_date DATE");
 
     log.info("Ensured base metadata tables exist");
   }

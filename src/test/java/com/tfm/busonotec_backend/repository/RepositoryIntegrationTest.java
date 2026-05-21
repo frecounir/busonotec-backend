@@ -73,7 +73,19 @@ class RepositoryIntegrationTest {
     businessEntityRepository.save(businessEntity(activitiesId, "Activities", "Activity records"));
 
     EntityField beta = entityField(UUID.randomUUID(), studentsId, "beta", "boolean");
-    EntityField alpha = entityField(UUID.randomUUID(), studentsId, "alpha", "string");
+    EntityField alpha = entityField(
+        UUID.randomUUID(),
+        studentsId,
+        "alpha",
+        "string",
+        true,
+        3,
+        120,
+        null,
+        null,
+        null,
+        null
+    );
     EntityField unrelated = entityField(UUID.randomUUID(), activitiesId, "zeta", "number");
     saveFields(beta, alpha, unrelated);
 
@@ -83,6 +95,9 @@ class RepositoryIntegrationTest {
     assertThat(fields).first().satisfies(field -> {
       assertThat(field.getId()).isEqualTo(alpha.getId());
       assertThat(field.getBusinessEntityId()).isEqualTo(studentsId);
+      assertThat(field.isRequired()).isTrue();
+      assertThat(field.getMinLength()).isEqualTo(3);
+      assertThat(field.getMaxLength()).isEqualTo(120);
     });
     assertThat(entityFieldRepository.existsByNameForEntity(studentsId, "alpha")).isTrue();
     assertThat(entityFieldRepository.existsByNameForEntity(studentsId, "missing")).isFalse();

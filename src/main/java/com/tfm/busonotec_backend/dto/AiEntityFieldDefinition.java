@@ -2,6 +2,9 @@ package com.tfm.busonotec_backend.dto;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 
+import java.math.BigDecimal;
+import java.time.LocalDate;
+
 @Schema(description = "Definicion de campo generada por IA lista para convertirse en columna fisica.")
 public record AiEntityFieldDefinition(
     @Schema(
@@ -18,6 +21,30 @@ public record AiEntityFieldDefinition(
         allowableValues = {"string", "number", "boolean", "date"},
         requiredMode = Schema.RequiredMode.REQUIRED
     )
-    String type
+    String type,
+
+    @Schema(description = "Indica si el campo debe ser obligatorio para crear records.", example = "true")
+    Boolean required,
+
+    @Schema(description = "Longitud minima para campos string. Debe ser null para otros tipos.", example = "3")
+    Integer minLength,
+
+    @Schema(description = "Longitud maxima para campos string. Debe ser null para otros tipos.", example = "120")
+    Integer maxLength,
+
+    @Schema(description = "Valor minimo para campos number. Debe ser null para otros tipos.", example = "0")
+    BigDecimal minValue,
+
+    @Schema(description = "Valor maximo para campos number. Debe ser null para otros tipos.", example = "100")
+    BigDecimal maxValue,
+
+    @Schema(description = "Fecha minima para campos date. Debe ser null para otros tipos.", example = "2026-01-01", format = "date")
+    LocalDate minDate,
+
+    @Schema(description = "Fecha maxima para campos date. Debe ser null para otros tipos.", example = "2026-12-31", format = "date")
+    LocalDate maxDate
 ) {
+  public AiEntityFieldDefinition(String name, String type) {
+    this(name, type, null, null, null, null, null, null, null);
+  }
 }

@@ -44,7 +44,10 @@ public class EntityFieldController {
                     "id": "c5ad7a80-63bb-4b0f-9679-2c0b1f5fcf9d",
                     "businessEntityId": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
                     "name": "score",
-                    "type": "number"
+                    "type": "number",
+                    "required": true,
+                    "minValue": 0,
+                    "maxValue": 100
                   }
                   """)
           )
@@ -63,7 +66,10 @@ public class EntityFieldController {
                   {
                     "businessEntityId": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
                     "name": "score",
-                    "type": "number"
+                    "type": "number",
+                    "required": true,
+                    "minValue": 0,
+                    "maxValue": 100
                   }
                   """)
           )

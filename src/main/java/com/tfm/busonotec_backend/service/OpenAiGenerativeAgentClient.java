@@ -25,6 +25,15 @@ public class OpenAiGenerativeAgentClient implements GenerativeAgentClient {
       Los nombres de campos deben estar en lowerCamelCase, por ejemplo correoElectronico o fechaInicio.
       Los identificadores deben cumplir ^[a-zA-Z][a-zA-Z0-9_]{0,62}$.
       Los tipos permitidos para campos son string, number, boolean y date.
+      Para cada campo decide si required debe ser true o false segun la necesidad de negocio.
+      Para campos string puedes proponer minLength y maxLength cuando aporten valor; usa null si no aplica.
+      Si type es string, minValue, maxValue, minDate y maxDate deben ser null.
+      Para campos number puedes proponer minValue y maxValue cuando aporten valor; usa null si no aplica.
+      Si type es number, minLength, maxLength, minDate y maxDate deben ser null.
+      Para campos date puedes proponer minDate y maxDate en formato yyyy-MM-dd cuando aporten valor; usa null si no aplica.
+      Si type es date, minLength, maxLength, minValue y maxValue deben ser null.
+      Si type es boolean, minLength, maxLength, minValue, maxValue, minDate y maxDate deben ser null.
+      No agregues validaciones que no correspondan al tipo del campo.
       Nunca incluyas un campo id, porque el backend lo crea automaticamente.
       Manten las descripciones concisas y practicas.
       """;
@@ -42,7 +51,7 @@ public class OpenAiGenerativeAgentClient implements GenerativeAgentClient {
       @Value("${ai.openai.model:gpt-5.2}") String model,
       @Value("${ai.openai.timeout-seconds:30}") long timeoutSeconds
   ) {
-    this(new ObjectMapper(), gateway, apiKey, model, timeoutSeconds);
+    this(new ObjectMapper().findAndRegisterModules(), gateway, apiKey, model, timeoutSeconds);
   }
 
   OpenAiGenerativeAgentClient(
@@ -140,10 +149,27 @@ public class OpenAiGenerativeAgentClient implements GenerativeAgentClient {
     return Map.of(
         "type", "object",
         "additionalProperties", false,
-        "required", List.of("name", "type"),
+        "required", List.of(
+            "name",
+            "type",
+            "required",
+            "minLength",
+            "maxLength",
+            "minValue",
+            "maxValue",
+            "minDate",
+            "maxDate"
+        ),
         "properties", Map.of(
             "name", Map.of("type", "string"),
-            "type", Map.of("type", "string", "enum", List.of("string", "number", "boolean", "date"))
+            "type", Map.of("type", "string", "enum", List.of("string", "number", "boolean", "date")),
+            "required", Map.of("type", List.of("boolean", "null")),
+            "minLength", Map.of("type", List.of("integer", "null"), "minimum", 0),
+            "maxLength", Map.of("type", List.of("integer", "null"), "minimum", 0),
+            "minValue", Map.of("type", List.of("number", "null")),
+            "maxValue", Map.of("type", List.of("number", "null")),
+            "minDate", Map.of("type", List.of("string", "null"), "format", "date"),
+            "maxDate", Map.of("type", List.of("string", "null"), "format", "date")
         )
     );
   }
