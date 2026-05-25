@@ -10,5 +10,5 @@ spring:
 ai:
   openai:
     api-key: ${OPENAI_API_KEY:}
-    model: ${OPENAI_MODEL:gpt-5.2}
+    model: ${OPENAI_MODEL:}
     timeout-seconds: ${OPENAI_TIMEOUT_SECONDS:30}
