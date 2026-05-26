@@ -16,12 +16,14 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 @Service
 public class EntityFieldService {
   private static final Logger log = LoggerFactory.getLogger(EntityFieldService.class);
   private static final String NAME_REGEX = "^[a-zA-Z][a-zA-Z0-9_]{0,62}$";
+  private static final Set<String> RELATIONSHIP_TYPES = Set.of("many_to_one", "one_to_one");
   private final EntityFieldRepository repository;
   private final BusinessEntityRepository entityRepository;
   private final DynamicSchemaService dynamicSchemaService;
@@ -39,6 +41,7 @@ public class EntityFieldService {
     validateName(req.getName());
     validateType(req.getType());
     validateValidationRules(req);
+    validateRelationshipRules(req);
     UUID entityId = req.getBusinessEntityId();
     Optional<BusinessEntity> entity = entityId == null ? Optional.empty() : entityRepository.findById(entityId);
     if (entity.isEmpty()) {
@@ -49,6 +52,8 @@ public class EntityFieldService {
     }
     UUID id = UUID.randomUUID();
     String normalizedType = req.getType().toLowerCase(Locale.ROOT);
+    String normalizedRelationshipType = normalizeRelationshipType(req.getRelationshipType());
+    Optional<BusinessEntity> referencedEntity = referencedEntity(req, normalizedType);
     EntityField f = new EntityField(
         id,
         req.getName(),
@@ -61,9 +66,20 @@ public class EntityFieldService {
         req.getMinValue(),
         req.getMaxValue(),
         req.getMinDate(),
-        req.getMaxDate()
+        req.getMaxDate(),
+        normalizedRelationshipType,
+        req.getReferencedBusinessEntityId()
     );
-    dynamicSchemaService.addColumn(entity.get().getName(), req.getName(), normalizedType);
+    if ("relationship".equals(normalizedType)) {
+      dynamicSchemaService.addRelationshipColumn(
+          entity.get().getName(),
+          req.getName(),
+          referencedEntity.get().getName(),
+          normalizedRelationshipType
+      );
+    } else {
+      dynamicSchemaService.addColumn(entity.get().getName(), req.getName(), normalizedType);
+    }
     repository.save(f);
     log.info("Created field {} for entity {}", req.getName(), entityId);
     return toResponse(f);
@@ -107,7 +123,9 @@ public class EntityFieldService {
         field.getMinValue(),
         field.getMaxValue(),
         field.getMinDate(),
-        field.getMaxDate()
+        field.getMaxDate(),
+        field.getRelationshipType(),
+        field.getReferencedBusinessEntityId()
     );
   }
 
@@ -128,7 +146,7 @@ public class EntityFieldService {
   private void validateType(String type) {
     if (type == null || type.isBlank()) throw new IllegalArgumentException("Field type must be provided");
     String t = type.toLowerCase();
-    if (!(t.equals("string") || t.equals("number") || t.equals("boolean") || t.equals("date"))) {
+    if (!(t.equals("string") || t.equals("number") || t.equals("boolean") || t.equals("date") || t.equals("relationship"))) {
       throw new IllegalArgumentException("Unsupported field type: " + type);
     }
   }
@@ -171,6 +189,46 @@ public class EntityFieldService {
     if (req.getMinDate() != null && req.getMaxDate() != null && req.getMinDate().isAfter(req.getMaxDate())) {
       throw new IllegalArgumentException("Minimum date must be less than or equal to maximum date");
     }
+  }
+
+  private void validateRelationshipRules(EntityFieldRequest req) {
+    String type = req.getType().toLowerCase(Locale.ROOT);
+    if (!"relationship".equals(type)) {
+      if (req.getRelationshipType() != null || req.getReferencedBusinessEntityId() != null) {
+        throw new IllegalArgumentException("Relationship metadata is only supported for relationship fields");
+      }
+      return;
+    }
+    if (req.getMinLength() != null || req.getMaxLength() != null
+        || req.getMinValue() != null || req.getMaxValue() != null
+        || req.getMinDate() != null || req.getMaxDate() != null) {
+      throw new IllegalArgumentException("Validation ranges are not supported for relationship fields");
+    }
+    if (req.getReferencedBusinessEntityId() == null) {
+      throw new IllegalArgumentException("Referenced business entity id must be provided for relationship fields");
+    }
+    String normalizedRelationshipType = normalizeRelationshipType(req.getRelationshipType());
+    if (normalizedRelationshipType == null) {
+      throw new IllegalArgumentException("Relationship type must be provided");
+    }
+    if (!RELATIONSHIP_TYPES.contains(normalizedRelationshipType)) {
+      throw new IllegalArgumentException("Unsupported relationship type: " + req.getRelationshipType());
+    }
+  }
+
+  private Optional<BusinessEntity> referencedEntity(EntityFieldRequest req, String normalizedType) {
+    if (!"relationship".equals(normalizedType)) {
+      return Optional.empty();
+    }
+    Optional<BusinessEntity> referencedEntity = entityRepository.findById(req.getReferencedBusinessEntityId());
+    if (referencedEntity.isEmpty()) {
+      throw new IllegalArgumentException("Referenced BusinessEntity not found: " + req.getReferencedBusinessEntityId());
+    }
+    return referencedEntity;
+  }
+
+  private String normalizeRelationshipType(String relationshipType) {
+    return relationshipType == null ? null : relationshipType.toLowerCase(Locale.ROOT);
   }
 
   private boolean required(EntityFieldRequest req) {

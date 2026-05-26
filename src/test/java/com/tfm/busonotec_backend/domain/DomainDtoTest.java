@@ -46,6 +46,9 @@ class DomainDtoTest {
     empty.setMaxValue(BigDecimal.TEN);
     empty.setMinDate(LocalDate.of(2026, 1, 1));
     empty.setMaxDate(LocalDate.of(2026, 12, 31));
+    UUID referencedEntityId = UUID.randomUUID();
+    empty.setRelationshipType("many_to_one");
+    empty.setReferencedBusinessEntityId(referencedEntityId);
 
     assertEntityField(empty, id, entityId, "email", "string");
     assertThat(empty.getDetail()).isEqualTo(detail);
@@ -56,6 +59,8 @@ class DomainDtoTest {
     assertThat(empty.getMaxValue()).isEqualByComparingTo(BigDecimal.TEN);
     assertThat(empty.getMinDate()).isEqualTo(LocalDate.of(2026, 1, 1));
     assertThat(empty.getMaxDate()).isEqualTo(LocalDate.of(2026, 12, 31));
+    assertThat(empty.getRelationshipType()).isEqualTo("many_to_one");
+    assertThat(empty.getReferencedBusinessEntityId()).isEqualTo(referencedEntityId);
 
     EntityField created = new EntityField(id, "score", "number", entityId, null);
 
@@ -92,6 +97,21 @@ class DomainDtoTest {
         null,
         null
     );
+    UUID referencedEntityId = UUID.randomUUID();
+    EntityFieldRequest relationshipRequest = new EntityFieldRequest(
+        entityId,
+        "activityId",
+        "relationship",
+        true,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        "many_to_one",
+        referencedEntityId
+    );
 
     assertThat(entityRequest.getName()).isEqualTo("Students");
     assertThat(entityRequest.getDescription()).isEqualTo("Student data");
@@ -101,6 +121,8 @@ class DomainDtoTest {
     assertThat(fieldRequest.getRequired()).isTrue();
     assertThat(fieldRequest.getMinLength()).isEqualTo(3);
     assertThat(fieldRequest.getMaxLength()).isEqualTo(120);
+    assertThat(relationshipRequest.getRelationshipType()).isEqualTo("many_to_one");
+    assertThat(relationshipRequest.getReferencedBusinessEntityId()).isEqualTo(referencedEntityId);
   }
 
   @Test
@@ -124,6 +146,9 @@ class DomainDtoTest {
     fieldResponse.setMaxValue(BigDecimal.TEN);
     fieldResponse.setMinDate(LocalDate.of(2026, 1, 1));
     fieldResponse.setMaxDate(LocalDate.of(2026, 12, 31));
+    UUID referencedEntityId = UUID.randomUUID();
+    fieldResponse.setRelationshipType("one_to_one");
+    fieldResponse.setReferencedBusinessEntityId(referencedEntityId);
 
     assertBusinessEntityResponse(entityResponse, entityId, "Students", "Student data");
     assertBusinessEntityResponse(
@@ -140,6 +165,8 @@ class DomainDtoTest {
     assertThat(fieldResponse.getMaxValue()).isEqualByComparingTo(BigDecimal.TEN);
     assertThat(fieldResponse.getMinDate()).isEqualTo(LocalDate.of(2026, 1, 1));
     assertThat(fieldResponse.getMaxDate()).isEqualTo(LocalDate.of(2026, 12, 31));
+    assertThat(fieldResponse.getRelationshipType()).isEqualTo("one_to_one");
+    assertThat(fieldResponse.getReferencedBusinessEntityId()).isEqualTo(referencedEntityId);
     assertEntityFieldResponse(
         new EntityFieldResponse(fieldId, entityId, "score", "number"),
         fieldId,

@@ -16,15 +16,19 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 import java.util.regex.Pattern;
 
 @Service
 public class AiBusinessSchemaService {
   private static final Pattern NAME = Pattern.compile("^[a-zA-Z][a-zA-Z0-9_]{0,62}$");
-  private static final Set<String> FIELD_TYPES = Set.of("string", "number", "boolean", "date");
+  private static final Set<String> FIELD_TYPES = Set.of("string", "number", "boolean", "date", "relationship");
+  private static final Set<String> RELATIONSHIP_TYPES = Set.of("many_to_one", "one_to_one");
 
   private final GenerativeAgentClient agentClient;
   private final BusinessEntityService businessEntityService;
@@ -53,23 +57,32 @@ public class AiBusinessSchemaService {
   public AiBusinessSchemaResponse executePlan(AiBusinessSchemaPlan plan) {
     AiBusinessSchemaPlan normalizedPlan = normalizePlan(plan);
     validatePlan(normalizedPlan);
-    List<CreatedBusinessEntityResponse> createdEntities = new ArrayList<>();
+
+    Map<String, BusinessEntityResponse> createdByName = new LinkedHashMap<>();
     for (AiBusinessEntityDefinition entityDefinition : normalizedPlan.businessEntities()) {
       BusinessEntityResponse entity = businessEntityService.create(
           new BusinessEntityRequest(entityDefinition.name(), entityDefinition.description())
       );
-      List<EntityFieldResponse> fields = createFields(entity.getId(), safeFields(entityDefinition));
+      createdByName.put(entityDefinition.name().toLowerCase(Locale.ROOT), entity);
+    }
+
+    List<CreatedBusinessEntityResponse> createdEntities = new ArrayList<>();
+    for (AiBusinessEntityDefinition entityDefinition : normalizedPlan.businessEntities()) {
+      BusinessEntityResponse entity = createdByName.get(entityDefinition.name().toLowerCase(Locale.ROOT));
+      List<EntityFieldResponse> fields = createFields(entity.getId(), safeFields(entityDefinition), createdByName);
       createdEntities.add(new CreatedBusinessEntityResponse(entity, fields));
     }
     return new AiBusinessSchemaResponse(normalizedPlan, createdEntities);
   }
 
   private List<EntityFieldResponse> createFields(
-      java.util.UUID businessEntityId,
-      List<AiEntityFieldDefinition> fields
+      UUID businessEntityId,
+      List<AiEntityFieldDefinition> fields,
+      Map<String, BusinessEntityResponse> createdByName
   ) {
     List<EntityFieldResponse> createdFields = new ArrayList<>();
     for (AiEntityFieldDefinition field : fields) {
+      UUID referencedBusinessEntityId = referencedBusinessEntityId(field, createdByName);
       createdFields.add(entityFieldService.create(
           new EntityFieldRequest(
               businessEntityId,
@@ -81,11 +94,27 @@ public class AiBusinessSchemaService {
               field.minValue(),
               field.maxValue(),
               field.minDate(),
-              field.maxDate()
+              field.maxDate(),
+              field.relationshipType(),
+              referencedBusinessEntityId
           )
       ));
     }
     return createdFields;
+  }
+
+  private UUID referencedBusinessEntityId(
+      AiEntityFieldDefinition field,
+      Map<String, BusinessEntityResponse> createdByName
+  ) {
+    if (!"relationship".equals(field.type())) {
+      return null;
+    }
+    BusinessEntityResponse referencedEntity = createdByName.get(field.referencedEntityName().toLowerCase(Locale.ROOT));
+    if (referencedEntity == null) {
+      throw new IllegalArgumentException("AI response relationship references unknown entity: " + field.referencedEntityName());
+    }
+    return referencedEntity.getId();
   }
 
   private void validatePrompt(String prompt) {
@@ -134,6 +163,19 @@ public class AiBusinessSchemaService {
       case "boolean" -> new AiEntityFieldDefinition(
           field.name(), type, field.required(), null, null, null, null, null, null
       );
+      case "relationship" -> new AiEntityFieldDefinition(
+          field.name(),
+          type,
+          field.required(),
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          normalizeRelationshipType(field.relationshipType()),
+          field.referencedEntityName()
+      );
       default -> field;
     };
   }
@@ -145,23 +187,25 @@ public class AiBusinessSchemaService {
 
     Set<String> entityNames = new HashSet<>();
     for (AiBusinessEntityDefinition entity : plan.businessEntities()) {
-      validateEntity(entity);
+      if (entity == null) {
+        throw new IllegalArgumentException("AI response contains an empty business entity");
+      }
+      validateIdentifier(entity.name(), "entity name");
       String entityKey = entity.name().toLowerCase(Locale.ROOT);
       if (!entityNames.add(entityKey)) {
         throw new IllegalArgumentException("AI response contains duplicated entity: " + entity.name());
       }
     }
+
+    for (AiBusinessEntityDefinition entity : plan.businessEntities()) {
+      validateEntity(entity, entityNames);
+    }
   }
 
-  private void validateEntity(AiBusinessEntityDefinition entity) {
-    if (entity == null) {
-      throw new IllegalArgumentException("AI response contains an empty business entity");
-    }
-    validateIdentifier(entity.name(), "entity name");
-
+  private void validateEntity(AiBusinessEntityDefinition entity, Set<String> entityNames) {
     Set<String> fieldNames = new HashSet<>();
     for (AiEntityFieldDefinition field : safeFields(entity)) {
-      validateField(field);
+      validateField(field, entityNames);
       String fieldKey = field.name().toLowerCase(Locale.ROOT);
       if (!fieldNames.add(fieldKey)) {
         throw new IllegalArgumentException("AI response contains duplicated field for entity " + entity.name() + ": " + field.name());
@@ -169,7 +213,7 @@ public class AiBusinessSchemaService {
     }
   }
 
-  private void validateField(AiEntityFieldDefinition field) {
+  private void validateField(AiEntityFieldDefinition field, Set<String> entityNames) {
     if (field == null) {
       throw new IllegalArgumentException("AI response contains an empty field");
     }
@@ -181,6 +225,7 @@ public class AiBusinessSchemaService {
       throw new IllegalArgumentException("AI response contains unsupported field type: " + field.type());
     }
     validateFieldRules(field);
+    validateRelationshipRules(field, entityNames);
   }
 
   private void validateFieldRules(AiEntityFieldDefinition field) {
@@ -223,6 +268,33 @@ public class AiBusinessSchemaService {
     }
   }
 
+  private void validateRelationshipRules(AiEntityFieldDefinition field, Set<String> entityNames) {
+    String type = field.type().toLowerCase(Locale.ROOT);
+    if (!"relationship".equals(type)) {
+      if (field.relationshipType() != null || field.referencedEntityName() != null) {
+        throw new IllegalArgumentException("AI response relationship metadata is only supported for relationship fields");
+      }
+      return;
+    }
+    if (field.minLength() != null || field.maxLength() != null
+        || field.minValue() != null || field.maxValue() != null
+        || field.minDate() != null || field.maxDate() != null) {
+      throw new IllegalArgumentException("AI response validation ranges are not supported for relationship fields");
+    }
+    String normalizedRelationshipType = normalizeRelationshipType(field.relationshipType());
+    if (normalizedRelationshipType == null) {
+      throw new IllegalArgumentException("AI response relationship type must be provided");
+    }
+    if (!RELATIONSHIP_TYPES.contains(normalizedRelationshipType)) {
+      throw new IllegalArgumentException("AI response contains unsupported relationship type: " + field.relationshipType());
+    }
+    validateIdentifier(field.referencedEntityName(), "referenced entity name");
+    String referencedEntityKey = field.referencedEntityName().toLowerCase(Locale.ROOT);
+    if (!entityNames.contains(referencedEntityKey)) {
+      throw new IllegalArgumentException("AI response relationship references unknown entity: " + field.referencedEntityName());
+    }
+  }
+
   private void validateIdentifier(String value, String label) {
     if (value == null || value.isBlank()) {
       throw new IllegalArgumentException("AI response " + label + " must be provided");
@@ -237,5 +309,9 @@ public class AiBusinessSchemaService {
       return List.of();
     }
     return entity.fields();
+  }
+
+  private String normalizeRelationshipType(String relationshipType) {
+    return relationshipType == null ? null : relationshipType.toLowerCase(Locale.ROOT);
   }
 }

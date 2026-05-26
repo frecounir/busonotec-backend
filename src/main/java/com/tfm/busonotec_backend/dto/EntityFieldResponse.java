@@ -32,7 +32,7 @@ public class EntityFieldResponse {
   @Schema(
       description = "Logical field type.",
       example = "number",
-      allowableValues = {"string", "number", "boolean", "date"}
+      allowableValues = {"string", "number", "boolean", "date", "relationship"}
   )
   private String type;
 
@@ -57,6 +57,20 @@ public class EntityFieldResponse {
   @Schema(description = "Maximum date value for date fields.", example = "2026-12-31", format = "date")
   private LocalDate maxDate;
 
+  @Schema(
+      description = "Relationship cardinality when this field references another business entity.",
+      example = "many_to_one",
+      allowableValues = {"many_to_one", "one_to_one"}
+  )
+  private String relationshipType;
+
+  @Schema(
+      description = "UUID of the referenced business entity when this field is a relationship.",
+      example = "7fb85f64-5717-4562-b3fc-2c963f66afa6",
+      format = "uuid"
+  )
+  private UUID referencedBusinessEntityId;
+
   public EntityFieldResponse() {}
 
   public EntityFieldResponse(UUID id, UUID businessEntityId, String name, String type) {
@@ -74,6 +88,22 @@ public class EntityFieldResponse {
                              BigDecimal maxValue,
                              LocalDate minDate,
                              LocalDate maxDate) {
+    this(id, businessEntityId, name, type, required, minLength, maxLength, minValue, maxValue, minDate, maxDate, null, null);
+  }
+
+  public EntityFieldResponse(UUID id,
+                             UUID businessEntityId,
+                             String name,
+                             String type,
+                             boolean required,
+                             Integer minLength,
+                             Integer maxLength,
+                             BigDecimal minValue,
+                             BigDecimal maxValue,
+                             LocalDate minDate,
+                             LocalDate maxDate,
+                             String relationshipType,
+                             UUID referencedBusinessEntityId) {
     this.id = id;
     this.businessEntityId = businessEntityId;
     this.name = name;
@@ -85,6 +115,8 @@ public class EntityFieldResponse {
     this.maxValue = maxValue;
     this.minDate = minDate;
     this.maxDate = maxDate;
+    this.relationshipType = relationshipType;
+    this.referencedBusinessEntityId = referencedBusinessEntityId;
   }
 
   public UUID getId() { return id; }
@@ -119,4 +151,10 @@ public class EntityFieldResponse {
 
   public LocalDate getMaxDate() { return maxDate; }
   public void setMaxDate(LocalDate maxDate) { this.maxDate = maxDate; }
+
+  public String getRelationshipType() { return relationshipType; }
+  public void setRelationshipType(String relationshipType) { this.relationshipType = relationshipType; }
+
+  public UUID getReferencedBusinessEntityId() { return referencedBusinessEntityId; }
+  public void setReferencedBusinessEntityId(UUID referencedBusinessEntityId) { this.referencedBusinessEntityId = referencedBusinessEntityId; }
 }

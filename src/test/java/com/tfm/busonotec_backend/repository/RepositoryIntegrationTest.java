@@ -11,10 +11,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+import static com.tfm.busonotec_backend.support.H2TestDatabase.columnExists;
 import static com.tfm.busonotec_backend.support.H2TestDatabase.newJdbcTemplate;
 import static com.tfm.busonotec_backend.support.H2TestDatabase.tableExists;
 import static com.tfm.busonotec_backend.support.TestFixtures.businessEntity;
 import static com.tfm.busonotec_backend.support.TestFixtures.entityField;
+import static com.tfm.busonotec_backend.support.TestFixtures.relationshipField;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -37,6 +39,8 @@ class RepositoryIntegrationTest {
   void seederCreatesRequiredMetadataTables() {
     assertThat(tableExists(jdbc, "business_entities")).isTrue();
     assertThat(tableExists(jdbc, "entity_fields")).isTrue();
+    assertThat(columnExists(jdbc, "entity_fields", "relationship_type")).isTrue();
+    assertThat(columnExists(jdbc, "entity_fields", "referenced_business_entity_id")).isTrue();
   }
 
   @Test
@@ -114,6 +118,35 @@ class RepositoryIntegrationTest {
     assertThat(entityFieldRepository.findByBusinessEntityId(studentsId)).isEmpty();
     assertThat(entityFieldRepository.findByBusinessEntityId(activitiesId)).singleElement()
         .satisfies(field -> assertThat(field.getName()).isEqualTo("zeta"));
+  }
+
+  @Test
+  void entityFieldRepositoryPersistsRelationshipMetadata() {
+    UUID studentsId = UUID.randomUUID();
+    UUID activitiesId = UUID.randomUUID();
+    businessEntityRepository.save(businessEntity(studentsId, "Students", "Student records"));
+    businessEntityRepository.save(businessEntity(activitiesId, "Activities", "Activity records"));
+
+    EntityField relationship = relationshipField(
+        UUID.randomUUID(),
+        studentsId,
+        "activityId",
+        "many_to_one",
+        activitiesId
+    );
+    entityFieldRepository.save(relationship);
+
+    assertThat(entityFieldRepository.findById(relationship.getId()))
+        .hasValueSatisfying(field -> {
+          assertThat(field.getType()).isEqualTo("relationship");
+          assertThat(field.getRelationshipType()).isEqualTo("many_to_one");
+          assertThat(field.getReferencedBusinessEntityId()).isEqualTo(activitiesId);
+        });
+    assertThat(entityFieldRepository.findByReferencedBusinessEntityId(activitiesId))
+        .extracting(EntityField::getId)
+        .containsExactly(relationship.getId());
+    assertThat(entityFieldRepository.existsByReferencedBusinessEntityId(activitiesId)).isTrue();
+    assertThat(entityFieldRepository.existsByReferencedBusinessEntityId(UUID.randomUUID())).isFalse();
   }
 
   @Test

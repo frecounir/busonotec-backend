@@ -22,9 +22,10 @@ public class EntityFieldRepository {
     String sql = """
         INSERT INTO entity_fields(
           id, business_entity_id, name, type, is_required,
-          min_length, max_length, min_value, max_value, min_date, max_date
+          min_length, max_length, min_value, max_value, min_date, max_date,
+          relationship_type, referenced_business_entity_id
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """;
     jdbc.update(
         sql,
@@ -38,14 +39,17 @@ public class EntityFieldRepository {
         f.getMinValue(),
         f.getMaxValue(),
         f.getMinDate(),
-        f.getMaxDate()
+        f.getMaxDate(),
+        f.getRelationshipType(),
+        f.getReferencedBusinessEntityId()
     );
   }
 
   public List<EntityField> findByBusinessEntityId(UUID businessEntityId) {
     String sql = """
         SELECT id, business_entity_id, name, type, is_required,
-               min_length, max_length, min_value, max_value, min_date, max_date
+               min_length, max_length, min_value, max_value, min_date, max_date,
+               relationship_type, referenced_business_entity_id
         FROM entity_fields
         WHERE business_entity_id = ?
         ORDER BY name
@@ -56,7 +60,8 @@ public class EntityFieldRepository {
   public Optional<EntityField> findById(UUID id) {
     String sql = """
         SELECT id, business_entity_id, name, type, is_required,
-               min_length, max_length, min_value, max_value, min_date, max_date
+               min_length, max_length, min_value, max_value, min_date, max_date,
+               relationship_type, referenced_business_entity_id
         FROM entity_fields
         WHERE id = ?
         """;
@@ -68,6 +73,24 @@ public class EntityFieldRepository {
     String sql = "SELECT COUNT(1) FROM entity_fields WHERE business_entity_id = ? AND name = ?";
     Integer count = jdbc.queryForObject(sql, Integer.class, businessEntityId, name);
     return count != null && count > 0;
+  }
+
+  public boolean existsByReferencedBusinessEntityId(UUID referencedBusinessEntityId) {
+    String sql = "SELECT COUNT(1) FROM entity_fields WHERE referenced_business_entity_id = ?";
+    Integer count = jdbc.queryForObject(sql, Integer.class, referencedBusinessEntityId);
+    return count != null && count > 0;
+  }
+
+  public List<EntityField> findByReferencedBusinessEntityId(UUID referencedBusinessEntityId) {
+    String sql = """
+        SELECT id, business_entity_id, name, type, is_required,
+               min_length, max_length, min_value, max_value, min_date, max_date,
+               relationship_type, referenced_business_entity_id
+        FROM entity_fields
+        WHERE referenced_business_entity_id = ?
+        ORDER BY business_entity_id, name
+        """;
+    return jdbc.query(sql, mapper(), referencedBusinessEntityId);
   }
 
   public int deleteByBusinessEntityId(UUID businessEntityId) {
@@ -86,6 +109,7 @@ public class EntityFieldRepository {
       public EntityField mapRow(ResultSet rs, int rowNum) throws SQLException {
         Date minDate = rs.getDate("min_date");
         Date maxDate = rs.getDate("max_date");
+        String referencedBusinessEntityId = rs.getString("referenced_business_entity_id");
         return new EntityField(
             UUID.fromString(rs.getString("id")),
             rs.getString("name"),
@@ -98,7 +122,9 @@ public class EntityFieldRepository {
             rs.getBigDecimal("min_value"),
             rs.getBigDecimal("max_value"),
             minDate == null ? null : minDate.toLocalDate(),
-            maxDate == null ? null : maxDate.toLocalDate()
+            maxDate == null ? null : maxDate.toLocalDate(),
+            rs.getString("relationship_type"),
+            referencedBusinessEntityId == null ? null : UUID.fromString(referencedBusinessEntityId)
         );
       }
     };

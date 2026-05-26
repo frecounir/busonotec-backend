@@ -19,7 +19,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @Tag(
     name = "AI Business Schema",
-    description = "Genera y crea entidades de negocio en espanol usando un asistente de IA generativa."
+    description = "Genera y crea entidades de negocio, campos y relaciones normalizadas en espanol usando un asistente de IA generativa."
 )
 public class AiBusinessSchemaController {
   private final AiBusinessSchemaService service;
@@ -30,7 +30,7 @@ public class AiBusinessSchemaController {
 
   @Operation(
       summary = "Crear plan de esquema de negocio desde un prompt",
-      description = "Envia un prompt en lenguaje natural al asistente de IA generativa y devuelve un plan JSON estructurado en espanol. Este endpoint no crea metadata, tablas ni columnas."
+      description = "Envia un prompt en lenguaje natural al asistente de IA generativa y devuelve un plan JSON estructurado en espanol. El asistente trata la respuesta como un modelo entidad relacion y debe normalizarla antes de responder. Este endpoint no crea metadata, tablas ni columnas."
   )
   @ApiResponses({
       @ApiResponse(
@@ -48,7 +48,21 @@ public class AiBusinessSchemaController {
                         "fields": [
                           { "name": "nombre", "type": "string" },
                           { "name": "correoElectronico", "type": "string" },
-                          { "name": "activo", "type": "boolean" }
+                          { "name": "activo", "type": "boolean" },
+                          {
+                            "name": "actividadId",
+                            "type": "relationship",
+                            "relationshipType": "many_to_one",
+                            "referencedEntityName": "Actividades"
+                          }
+                        ]
+                      },
+                      {
+                        "name": "Actividades",
+                        "description": "Actividades academicas disponibles",
+                        "fields": [
+                          { "name": "titulo", "type": "string" },
+                          { "name": "fechaInicio", "type": "date" }
                         ]
                       }
                     ]
@@ -81,7 +95,7 @@ public class AiBusinessSchemaController {
 
   @Operation(
       summary = "Ejecutar plan de esquema de negocio",
-      description = "Recibe un plan JSON previamente revisado por el usuario y lo ejecuta usando los servicios existentes de entidades y campos para crear metadata, tablas fisicas y columnas."
+      description = "Recibe un plan JSON previamente revisado por el usuario y lo ejecuta usando los servicios existentes de entidades y campos para crear metadata, tablas fisicas, columnas y relaciones."
   )
   @ApiResponses({
       @ApiResponse(

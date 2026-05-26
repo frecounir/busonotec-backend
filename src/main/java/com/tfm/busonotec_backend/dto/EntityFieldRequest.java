@@ -11,7 +11,7 @@ import java.util.UUID;
 /**
  * DTO to create an EntityField.
  */
-@Schema(description = "Payload used to create a dynamic field and physical table column.")
+@Schema(description = "Payload used to create a dynamic field, relationship metadata, and physical table column.")
 public class EntityFieldRequest {
   @Schema(
       description = "UUID of the business entity that owns the field.",
@@ -34,7 +34,7 @@ public class EntityFieldRequest {
   @Schema(
       description = "Logical field type mapped to a database column type.",
       example = "number",
-      allowableValues = {"string", "number", "boolean", "date"},
+      allowableValues = {"string", "number", "boolean", "date", "relationship"},
       requiredMode = Schema.RequiredMode.REQUIRED
   )
   private final String type;
@@ -60,8 +60,35 @@ public class EntityFieldRequest {
   @Schema(description = "Maximum date value. Only valid for date fields.", example = "2026-12-31", format = "date")
   private final LocalDate maxDate;
 
+  @Schema(
+      description = "Relationship cardinality when type is relationship. Use many_to_one for foreign keys from many source records to one target record; one_to_one also creates a unique constraint.",
+      example = "many_to_one",
+      allowableValues = {"many_to_one", "one_to_one"}
+  )
+  private final String relationshipType;
+
+  @Schema(
+      description = "UUID of the target business entity when type is relationship.",
+      example = "7fb85f64-5717-4562-b3fc-2c963f66afa6",
+      format = "uuid"
+  )
+  private final UUID referencedBusinessEntityId;
+
   public EntityFieldRequest(UUID businessEntityId, String name, String type) {
-    this(businessEntityId, name, type, null, null, null, null, null, null, null);
+    this(businessEntityId, name, type, null, null, null, null, null, null, null, null, null);
+  }
+
+  public EntityFieldRequest(UUID businessEntityId,
+                            String name,
+                            String type,
+                            Boolean required,
+                            Integer minLength,
+                            Integer maxLength,
+                            BigDecimal minValue,
+                            BigDecimal maxValue,
+                            LocalDate minDate,
+                            LocalDate maxDate) {
+    this(businessEntityId, name, type, required, minLength, maxLength, minValue, maxValue, minDate, maxDate, null, null);
   }
 
   @JsonCreator
@@ -74,7 +101,9 @@ public class EntityFieldRequest {
                             @JsonProperty("minValue") BigDecimal minValue,
                             @JsonProperty("maxValue") BigDecimal maxValue,
                             @JsonProperty("minDate") LocalDate minDate,
-                            @JsonProperty("maxDate") LocalDate maxDate) {
+                            @JsonProperty("maxDate") LocalDate maxDate,
+                            @JsonProperty("relationshipType") String relationshipType,
+                            @JsonProperty("referencedBusinessEntityId") UUID referencedBusinessEntityId) {
     this.businessEntityId = businessEntityId;
     this.name = name;
     this.type = type;
@@ -85,6 +114,8 @@ public class EntityFieldRequest {
     this.maxValue = maxValue;
     this.minDate = minDate;
     this.maxDate = maxDate;
+    this.relationshipType = relationshipType;
+    this.referencedBusinessEntityId = referencedBusinessEntityId;
   }
 
   public UUID getBusinessEntityId() { return businessEntityId; }
@@ -97,4 +128,6 @@ public class EntityFieldRequest {
   public BigDecimal getMaxValue() { return maxValue; }
   public LocalDate getMinDate() { return minDate; }
   public LocalDate getMaxDate() { return maxDate; }
+  public String getRelationshipType() { return relationshipType; }
+  public UUID getReferencedBusinessEntityId() { return referencedBusinessEntityId; }
 }

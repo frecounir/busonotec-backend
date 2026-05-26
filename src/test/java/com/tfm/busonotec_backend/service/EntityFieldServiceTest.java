@@ -6,6 +6,7 @@ import com.tfm.busonotec_backend.support.InMemoryBusinessEntityRepository;
 import com.tfm.busonotec_backend.support.InMemoryEntityFieldRepository;
 import com.tfm.busonotec_backend.support.RecordingDynamicSchemaService;
 import com.tfm.busonotec_backend.support.RecordingDynamicSchemaService.AddedColumn;
+import com.tfm.busonotec_backend.support.RecordingDynamicSchemaService.AddedRelationshipColumn;
 import com.tfm.busonotec_backend.support.RecordingDynamicSchemaService.DroppedColumn;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -19,8 +20,10 @@ import java.util.UUID;
 import java.util.stream.Stream;
 
 import static com.tfm.busonotec_backend.support.TestFixtures.STUDENTS;
+import static com.tfm.busonotec_backend.support.TestFixtures.businessEntity;
 import static com.tfm.busonotec_backend.support.TestFixtures.entityField;
 import static com.tfm.busonotec_backend.support.TestFixtures.entityFieldRequest;
+import static com.tfm.busonotec_backend.support.TestFixtures.relationshipFieldRequest;
 import static com.tfm.busonotec_backend.support.TestFixtures.studentsEntity;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -80,6 +83,29 @@ class EntityFieldServiceTest {
     });
   }
 
+  @Test
+  void createRelationshipAddsForeignKeyColumnAndPersistsMetadata() {
+    UUID activitiesId = UUID.randomUUID();
+    entityRepository.add(businessEntity(activitiesId, "Activities", "Activity records"));
+
+    EntityFieldResponse response = service.create(relationshipFieldRequest(
+        entityId,
+        "activityId",
+        "many_to_one",
+        activitiesId
+    ));
+
+    assertEntityFieldResponse(response, entityId, "activityId", "relationship");
+    assertThat(response.getRelationshipType()).isEqualTo("many_to_one");
+    assertThat(response.getReferencedBusinessEntityId()).isEqualTo(activitiesId);
+    assertThat(schemaService.addedRelationshipColumns())
+        .containsExactly(new AddedRelationshipColumn(STUDENTS, "activityId", "Activities", "many_to_one"));
+    assertThat(fieldRepository.savedFields()).singleElement().satisfies(saved -> {
+      assertThat(saved.getRelationshipType()).isEqualTo("many_to_one");
+      assertThat(saved.getReferencedBusinessEntityId()).isEqualTo(activitiesId);
+    });
+  }
+
   @ParameterizedTest
   @MethodSource("invalidFieldNames")
   void createRejectsInvalidNames(String fieldName) {
@@ -111,6 +137,23 @@ class EntityFieldServiceTest {
     assertThat(assertThrows(IllegalArgumentException.class,
         () -> service.create(entityFieldRequest(entityId, "name", "string", null, null, null, null, null, LocalDate.now(), null))))
         .hasMessage("Date validations are only supported for date fields");
+    assertCreateHadNoSideEffects();
+  }
+
+  @Test
+  void createRejectsInvalidRelationshipDefinitions() {
+    UUID activitiesId = UUID.randomUUID();
+    entityRepository.add(businessEntity(activitiesId, "Activities", "Activity records"));
+
+    assertThat(assertThrows(IllegalArgumentException.class,
+        () -> service.create(new EntityFieldRequest(entityId, "activityId", "relationship"))))
+        .hasMessage("Referenced business entity id must be provided for relationship fields");
+    assertThat(assertThrows(IllegalArgumentException.class,
+        () -> service.create(relationshipFieldRequest(entityId, "activityId", "many", activitiesId))))
+        .hasMessage("Unsupported relationship type: many");
+    assertThat(assertThrows(IllegalArgumentException.class,
+        () -> service.create(new EntityFieldRequest(entityId, "name", "string", null, null, null, null, null, null, null, "many_to_one", activitiesId))))
+        .hasMessage("Relationship metadata is only supported for relationship fields");
     assertCreateHadNoSideEffects();
   }
 

@@ -8,6 +8,7 @@ import com.tfm.busonotec_backend.dto.AiEntityFieldDefinition;
 import com.tfm.busonotec_backend.support.InMemoryBusinessEntityRepository;
 import com.tfm.busonotec_backend.support.InMemoryEntityFieldRepository;
 import com.tfm.busonotec_backend.support.RecordingDynamicSchemaService;
+import com.tfm.busonotec_backend.support.RecordingDynamicSchemaService.AddedRelationshipColumn;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -120,6 +121,35 @@ class AiBusinessSchemaServiceTest {
   }
 
   @Test
+  void executePlanCreatesRelationshipFieldsAfterAllEntitiesExist() {
+    AiBusinessSchemaPlan plan = new AiBusinessSchemaPlan(List.of(
+        new AiBusinessEntityDefinition("Actividades", "Actividades academicas", List.of(
+            new AiEntityFieldDefinition("titulo", "string")
+        )),
+        new AiBusinessEntityDefinition("Estudiantes", "Registros de estudiantes", List.of(
+            new AiEntityFieldDefinition("nombre", "string"),
+            new AiEntityFieldDefinition("actividadId", "relationship", true, null, null, null, null, null, null, "many_to_one", "Actividades")
+        ))
+    ));
+
+    AiBusinessSchemaResponse response = service.executePlan(plan);
+
+    assertThat(response.createdBusinessEntities())
+        .extracting(created -> created.businessEntity().getName())
+        .containsExactly("Actividades", "Estudiantes");
+    assertThat(response.createdBusinessEntities()).element(1).satisfies(created -> {
+      assertThat(created.fields()).extracting("name").containsExactly("nombre", "actividadId");
+      assertThat(created.fields()).element(1).satisfies(field -> {
+        assertThat(field.getType()).isEqualTo("relationship");
+        assertThat(field.getRelationshipType()).isEqualTo("many_to_one");
+        assertThat(field.getReferencedBusinessEntityId()).isEqualTo(response.createdBusinessEntities().get(0).businessEntity().getId());
+      });
+    });
+    assertThat(schemaService.addedRelationshipColumns())
+        .containsExactly(new AddedRelationshipColumn("Estudiantes", "actividadId", "Actividades", "many_to_one"));
+  }
+
+  @Test
   void createPlanFromPromptRejectsBlankPromptBeforeCallingAgent() {
     IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
         () -> service.createPlanFromPrompt(new AiBusinessSchemaRequest(" ")));
@@ -163,6 +193,18 @@ class AiBusinessSchemaServiceTest {
             new AiEntityFieldDefinition("puntaje", "number", true, null, null, BigDecimal.TEN, BigDecimal.ONE, null, null)
         )))),
         "AI response minimum value must be less than or equal to maximum value"
+    );
+    assertInvalidPlan(
+        new AiBusinessSchemaPlan(List.of(new AiBusinessEntityDefinition("Estudiantes", "Registros de estudiantes", List.of(
+            new AiEntityFieldDefinition("actividadId", "relationship", true, null, null, null, null, null, null, "many", "Actividades")
+        )))),
+        "AI response contains unsupported relationship type: many"
+    );
+    assertInvalidPlan(
+        new AiBusinessSchemaPlan(List.of(new AiBusinessEntityDefinition("Estudiantes", "Registros de estudiantes", List.of(
+            new AiEntityFieldDefinition("actividadId", "relationship", true, null, null, null, null, null, null, "many_to_one", "Actividades")
+        )))),
+        "AI response relationship references unknown entity: Actividades"
     );
   }
 

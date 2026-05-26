@@ -1,6 +1,7 @@
 package com.tfm.busonotec_backend.service;
 
 import com.tfm.busonotec_backend.domain.BusinessEntity;
+import com.tfm.busonotec_backend.domain.EntityField;
 import com.tfm.busonotec_backend.dto.BusinessEntityRequest;
 import com.tfm.busonotec_backend.dto.BusinessEntityResponse;
 import com.tfm.busonotec_backend.repository.BusinessEntityRepository;
@@ -72,12 +73,25 @@ public class BusinessEntityService {
     BusinessEntity entity = repository.findById(id)
         .orElseThrow(() -> new IllegalArgumentException("Business entity not found: " + id));
 
+    deleteIncomingRelationshipFields(id);
     fieldRepository.deleteByBusinessEntityId(id);
     boolean deleted = repository.deleteById(id);
     if (!deleted) {
       throw new IllegalArgumentException("Business entity not found: " + id);
     }
     dynamicSchemaService.dropEntityTable(entity.getName());
+  }
+
+  private void deleteIncomingRelationshipFields(UUID referencedBusinessEntityId) {
+    List<EntityField> incomingRelationshipFields = fieldRepository.findByReferencedBusinessEntityId(referencedBusinessEntityId);
+    for (EntityField field : incomingRelationshipFields) {
+      repository.findById(field.getBusinessEntityId()).ifPresent(owner -> {
+        if (dynamicSchemaService.entityExists(owner.getName())) {
+          dynamicSchemaService.dropColumn(owner.getName(), field.getName());
+        }
+      });
+      fieldRepository.deleteById(field.getId());
+    }
   }
 
   private BusinessEntityResponse toResponse(BusinessEntity entity) {

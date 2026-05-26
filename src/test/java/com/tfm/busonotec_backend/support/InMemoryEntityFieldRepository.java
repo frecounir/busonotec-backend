@@ -64,6 +64,20 @@ public final class InMemoryEntityFieldRepository extends EntityFieldRepository {
   }
 
   @Override
+  public boolean existsByReferencedBusinessEntityId(UUID referencedBusinessEntityId) {
+    return fields.stream()
+        .anyMatch(field -> referencedBusinessEntityId.equals(field.getReferencedBusinessEntityId()));
+  }
+
+  @Override
+  public List<EntityField> findByReferencedBusinessEntityId(UUID referencedBusinessEntityId) {
+    return fields.stream()
+        .filter(field -> referencedBusinessEntityId.equals(field.getReferencedBusinessEntityId()))
+        .sorted(Comparator.comparing(EntityField::getBusinessEntityId).thenComparing(EntityField::getName))
+        .toList();
+  }
+
+  @Override
   public int deleteByBusinessEntityId(UUID businessEntityId) {
     int before = fields.size();
     fields.removeIf(field -> businessEntityId.equals(field.getBusinessEntityId()));

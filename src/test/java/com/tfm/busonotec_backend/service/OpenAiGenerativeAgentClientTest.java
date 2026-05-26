@@ -42,7 +42,9 @@ class OpenAiGenerativeAgentClientTest {
                   "minValue": 0,
                   "maxValue": 100,
                   "minDate": null,
-                  "maxDate": null
+                  "maxDate": null,
+                  "relationshipType": null,
+                  "referencedEntityName": null
                 }
               ]
             }
@@ -69,6 +71,8 @@ class OpenAiGenerativeAgentClientTest {
     assertThat(requestBody.path("model").asText()).isEqualTo("gpt-test");
     assertThat(requestBody.path("input").asText()).isEqualTo("Crea estudiantes");
     assertThat(requestBody.path("instructions").asText()).contains("Siempre responde en espanol");
+    assertThat(requestBody.path("instructions").asText()).contains("modelo entidad relacion");
+    assertThat(requestBody.path("instructions").asText()).contains("normaliza el modelo de datos");
     assertThat(requestBody.path("instructions").asText()).contains("No traduzcas conceptos del usuario al ingles");
     assertThat(requestBody.path("instructions").asText()).contains("Para cada campo decide si required debe ser true o false");
     assertThat(requestBody.path("text").path("format").path("type").asText()).isEqualTo("json_schema");
@@ -80,7 +84,15 @@ class OpenAiGenerativeAgentClientTest {
     List<String> requiredProperties = new ArrayList<>();
     fieldRequiredProperties.forEach(property -> requiredProperties.add(property.asText()));
     assertThat(requiredProperties)
-        .contains("required", "minLength", "maxLength", "minValue", "maxValue", "minDate", "maxDate");
+        .contains("required", "minLength", "maxLength", "minValue", "maxValue", "minDate", "maxDate",
+            "relationshipType", "referencedEntityName");
+    JsonNode fieldTypeEnum = requestBody.path("text").path("format").path("schema")
+        .path("properties").path("businessEntities")
+        .path("items").path("properties").path("fields")
+        .path("items").path("properties").path("type").path("enum");
+    List<String> fieldTypes = new ArrayList<>();
+    fieldTypeEnum.forEach(value -> fieldTypes.add(value.asText()));
+    assertThat(fieldTypes).contains("relationship");
   }
 
   @Test

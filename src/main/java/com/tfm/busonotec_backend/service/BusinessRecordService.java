@@ -154,6 +154,7 @@ public class BusinessRecordService {
       case "number" -> validateNumberValue(field, value);
       case "boolean" -> validateBooleanValue(field, value);
       case "date" -> validateDateValue(fieldName, field, value);
+      case "relationship" -> validateRelationshipValue(field, value);
       default -> throw new IllegalArgumentException("Unsupported field type: " + field.getType());
     };
   }
@@ -201,6 +202,20 @@ public class BusinessRecordService {
       }
     }
     throw new IllegalArgumentException("Invalid date value for field " + fieldName + ". Expected format: yyyy-MM-dd");
+  }
+
+  private UUID validateRelationshipValue(EntityField field, Object value) {
+    if (value instanceof UUID uuid) {
+      return uuid;
+    }
+    if (value instanceof String textValue) {
+      try {
+        return UUID.fromString(textValue);
+      } catch (IllegalArgumentException e) {
+        throw new IllegalArgumentException("Invalid relationship value for field " + field.getName() + ". Expected UUID");
+      }
+    }
+    throw new IllegalArgumentException("Invalid relationship value for field " + field.getName() + ". Expected UUID");
   }
 
   private LocalDate validateDateRange(EntityField field, LocalDate value) {

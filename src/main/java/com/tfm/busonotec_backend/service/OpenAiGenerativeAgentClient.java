@@ -9,6 +9,7 @@ import org.springframework.stereotype.Service;
 
 import java.io.IOException;
 import java.time.Duration;
+import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -18,13 +19,20 @@ public class OpenAiGenerativeAgentClient implements GenerativeAgentClient {
   private static final String AGENT_INSTRUCTIONS = """
       Eres un asistente que transforma requisitos de usuario en JSON de esquema de negocio listo para base de datos.
       Siempre responde en espanol.
+      Trata la respuesta como un modelo entidad relacion: antes de responder, normaliza el modelo de datos.
+      Aplica buenas practicas de normalizacion: entidades con una sola responsabilidad, campos atomicos, sin grupos repetidos,
+      sin datos derivados innecesarios, sin duplicar atributos entre entidades y con dependencias claras de cada campo hacia su entidad.
+      Cuando exista una relacion uno a muchos, modelala como un campo relationship en la entidad hija apuntando a la entidad padre.
+      Cuando exista una relacion muchos a muchos, crea una entidad intermedia normalizada con dos campos relationship many_to_one.
+      Usa relationshipType many_to_one para llaves foraneas comunes y one_to_one solo cuando el negocio exija unicidad.
+      Para campos relationship, referencedEntityName debe ser el nombre exacto de otra entidad incluida en businessEntities.
       Genera nombres de entidades, descripciones y nombres de campos en espanol.
       No traduzcas conceptos del usuario al ingles.
       Usa identificadores ASCII: elimina tildes y convierte la letra ene con virgulilla en n.
       Los nombres de entidades deben estar en plural y PascalCase, por ejemplo Estudiantes o Actividades.
       Los nombres de campos deben estar en lowerCamelCase, por ejemplo correoElectronico o fechaInicio.
       Los identificadores deben cumplir ^[a-zA-Z][a-zA-Z0-9_]{0,62}$.
-      Los tipos permitidos para campos son string, number, boolean y date.
+      Los tipos permitidos para campos son string, number, boolean, date y relationship.
       Para cada campo decide si required debe ser true o false segun la necesidad de negocio.
       Para campos string puedes proponer minLength y maxLength cuando aporten valor; usa null si no aplica.
       Si type es string, minValue, maxValue, minDate y maxDate deben ser null.
@@ -33,6 +41,9 @@ public class OpenAiGenerativeAgentClient implements GenerativeAgentClient {
       Para campos date puedes proponer minDate y maxDate en formato yyyy-MM-dd cuando aporten valor; usa null si no aplica.
       Si type es date, minLength, maxLength, minValue y maxValue deben ser null.
       Si type es boolean, minLength, maxLength, minValue, maxValue, minDate y maxDate deben ser null.
+      Si type es relationship, minLength, maxLength, minValue, maxValue, minDate y maxDate deben ser null,
+      relationshipType debe ser many_to_one u one_to_one, y referencedEntityName debe tener la entidad destino.
+      Si type no es relationship, relationshipType y referencedEntityName deben ser null.
       No agregues validaciones que no correspondan al tipo del campo.
       Nunca incluyas un campo id, porque el backend lo crea automaticamente.
       Manten las descripciones concisas y practicas.
@@ -158,20 +169,28 @@ public class OpenAiGenerativeAgentClient implements GenerativeAgentClient {
             "minValue",
             "maxValue",
             "minDate",
-            "maxDate"
+            "maxDate",
+            "relationshipType",
+            "referencedEntityName"
         ),
-        "properties", Map.of(
-            "name", Map.of("type", "string"),
-            "type", Map.of("type", "string", "enum", List.of("string", "number", "boolean", "date")),
-            "required", Map.of("type", List.of("boolean", "null")),
-            "minLength", Map.of("type", List.of("integer", "null"), "minimum", 0),
-            "maxLength", Map.of("type", List.of("integer", "null"), "minimum", 0),
-            "minValue", Map.of("type", List.of("number", "null")),
-            "maxValue", Map.of("type", List.of("number", "null")),
-            "minDate", Map.of("type", List.of("string", "null"), "format", "date"),
-            "maxDate", Map.of("type", List.of("string", "null"), "format", "date")
-        )
+        "properties", fieldProperties()
     );
+  }
+
+  private Map<String, Object> fieldProperties() {
+    Map<String, Object> properties = new LinkedHashMap<>();
+    properties.put("name", Map.of("type", "string"));
+    properties.put("type", Map.of("type", "string", "enum", List.of("string", "number", "boolean", "date", "relationship")));
+    properties.put("required", Map.of("type", List.of("boolean", "null")));
+    properties.put("minLength", Map.of("type", List.of("integer", "null"), "minimum", 0));
+    properties.put("maxLength", Map.of("type", List.of("integer", "null"), "minimum", 0));
+    properties.put("minValue", Map.of("type", List.of("number", "null")));
+    properties.put("maxValue", Map.of("type", List.of("number", "null")));
+    properties.put("minDate", Map.of("type", List.of("string", "null"), "format", "date"));
+    properties.put("maxDate", Map.of("type", List.of("string", "null"), "format", "date"));
+    properties.put("relationshipType", Map.of("type", List.of("string", "null"), "enum", Arrays.asList("many_to_one", "one_to_one", null)));
+    properties.put("referencedEntityName", Map.of("type", List.of("string", "null")));
+    return properties;
   }
 
   private String extractOutputText(String responseBody) throws IOException {

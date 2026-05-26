@@ -21,7 +21,7 @@ import java.util.UUID;
 @RestController
 @Tag(
     name = "Entity Fields",
-    description = "Manage dynamic fields for business entities and synchronize them with physical table columns."
+    description = "Manage dynamic fields and relationship fields for business entities, synchronizing them with physical table columns and foreign keys."
 )
 public class EntityFieldController {
   private final EntityFieldService service;
@@ -30,7 +30,7 @@ public class EntityFieldController {
 
   @Operation(
       summary = "Create an entity field",
-      description = "Registers a field for a business entity and adds the matching column to the physical table."
+      description = "Registers a field for a business entity. Regular fields add physical columns; relationship fields add UUID columns and foreign key constraints."
   )
   @ApiResponses({
       @ApiResponse(
@@ -43,16 +43,16 @@ public class EntityFieldController {
                   {
                     "id": "c5ad7a80-63bb-4b0f-9679-2c0b1f5fcf9d",
                     "businessEntityId": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
-                    "name": "score",
-                    "type": "number",
+                    "name": "activityId",
+                    "type": "relationship",
                     "required": true,
-                    "minValue": 0,
-                    "maxValue": 100
+                    "relationshipType": "many_to_one",
+                    "referencedBusinessEntityId": "7fb85f64-5717-4562-b3fc-2c963f66afa6"
                   }
                   """)
           )
       ),
-      @ApiResponse(responseCode = "400", description = "Invalid field name, unsupported type, duplicated field, or missing entity.", content = @Content)
+      @ApiResponse(responseCode = "400", description = "Invalid field name, unsupported type or relationship, duplicated field, or missing entity.", content = @Content)
   })
   @PostMapping("/api/entity-fields")
   public ResponseEntity<EntityFieldResponse> create(
@@ -65,11 +65,11 @@ public class EntityFieldController {
               examples = @ExampleObject(value = """
                   {
                     "businessEntityId": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
-                    "name": "score",
-                    "type": "number",
+                    "name": "activityId",
+                    "type": "relationship",
                     "required": true,
-                    "minValue": 0,
-                    "maxValue": 100
+                    "relationshipType": "many_to_one",
+                    "referencedBusinessEntityId": "7fb85f64-5717-4562-b3fc-2c963f66afa6"
                   }
                   """)
           )

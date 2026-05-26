@@ -121,6 +121,39 @@ class ApiIntegrationTest {
   }
 
   @Test
+  void relationshipFieldsCreateForeignKeysAndAcceptReferencedRecordIds() throws Exception {
+    BusinessEntityResponse activityEntity = createBusinessEntity(uniqueEntityName("ActivitiesRel"));
+    BusinessEntityResponse studentEntity = createBusinessEntity(uniqueEntityName("StudentsRel"));
+
+    EntityFieldResponse relationshipField = createEntityField(
+        studentEntity,
+        "activityId",
+        "relationship",
+        Map.of(
+            "relationshipType", "many_to_one",
+            "referencedBusinessEntityId", activityEntity.getId()
+        )
+    );
+
+    assertThat(columnExists(jdbc, studentEntity.getName().toLowerCase(Locale.ROOT), "activityid")).isTrue();
+    assertThat(relationshipField.getType()).isEqualTo("relationship");
+    assertThat(relationshipField.getRelationshipType()).isEqualTo("many_to_one");
+    assertThat(relationshipField.getReferencedBusinessEntityId()).isEqualTo(activityEntity.getId());
+
+    Map<String, Object> activityRecord = createEmptyRecord(activityEntity);
+    Map<String, Object> studentRecord = createRecord(studentEntity, Map.of("activityId", activityRecord.get("id")));
+
+    assertThat(studentRecord.get("activityid")).isEqualTo(activityRecord.get("id"));
+
+    deleteBusinessEntity(activityEntity);
+    assertThat(tableExists(jdbc, activityEntity.getName().toLowerCase(Locale.ROOT))).isFalse();
+    assertThat(columnExists(jdbc, studentEntity.getName().toLowerCase(Locale.ROOT), "activityid")).isFalse();
+    assertThat(fieldsForEntity(studentEntity)).isEmpty();
+
+    deleteBusinessEntity(studentEntity);
+  }
+
+  @Test
   void aiBusinessSchemaEndpointsCreatePlanAndExecuteApprovedPlan() throws Exception {
     String entityName = uniqueEntityName("EstudiantesAi");
 
@@ -254,6 +287,19 @@ class ApiIntegrationTest {
     assertThat(record.get("id")).isNotNull();
     assertThat(((Number) record.get("score")).intValue()).isEqualTo(score);
     assertThat(record.get("enrollmentdate").toString()).isEqualTo("2026-05-19");
+    return record;
+  }
+
+  private Map<String, Object> createEmptyRecord(BusinessEntityResponse entity) throws Exception {
+    return createRecord(entity, Map.of());
+  }
+
+  private Map<String, Object> createRecord(BusinessEntityResponse entity, Map<String, Object> values) throws Exception {
+    HttpResponse<String> response = http.postJson("/api/business-entities/" + entity.getId() + "/records", values);
+
+    assertOk(response);
+    Map<String, Object> record = http.readRecord(response);
+    assertThat(record.get("id")).isNotNull();
     return record;
   }
 

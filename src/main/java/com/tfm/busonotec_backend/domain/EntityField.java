@@ -10,7 +10,7 @@ import java.util.UUID;
 public class EntityField {
   private UUID id;
   private String name;
-  private String type; // string, number, boolean, date
+  private String type; // string, number, boolean, date, relationship
   private UUID businessEntityId;
   private FieldDetail detail;
   private boolean required;
@@ -20,6 +20,8 @@ public class EntityField {
   private BigDecimal maxValue;
   private LocalDate minDate;
   private LocalDate maxDate;
+  private String relationshipType;
+  private UUID referencedBusinessEntityId;
 
   public EntityField() {}
 
@@ -39,6 +41,23 @@ public class EntityField {
                      BigDecimal maxValue,
                      LocalDate minDate,
                      LocalDate maxDate) {
+    this(id, name, type, businessEntityId, detail, required, minLength, maxLength, minValue, maxValue, minDate, maxDate, null, null);
+  }
+
+  public EntityField(UUID id,
+                     String name,
+                     String type,
+                     UUID businessEntityId,
+                     FieldDetail detail,
+                     boolean required,
+                     Integer minLength,
+                     Integer maxLength,
+                     BigDecimal minValue,
+                     BigDecimal maxValue,
+                     LocalDate minDate,
+                     LocalDate maxDate,
+                     String relationshipType,
+                     UUID referencedBusinessEntityId) {
     this.id = id;
     this.name = name;
     this.type = type;
@@ -51,6 +70,8 @@ public class EntityField {
     this.maxValue = maxValue;
     this.minDate = minDate;
     this.maxDate = maxDate;
+    this.relationshipType = relationshipType;
+    this.referencedBusinessEntityId = referencedBusinessEntityId;
   }
 
   public UUID getId() { return id; }
@@ -88,4 +109,10 @@ public class EntityField {
 
   public LocalDate getMaxDate() { return maxDate; }
   public void setMaxDate(LocalDate maxDate) { this.maxDate = maxDate; }
+
+  public String getRelationshipType() { return relationshipType; }
+  public void setRelationshipType(String relationshipType) { this.relationshipType = relationshipType; }
+
+  public UUID getReferencedBusinessEntityId() { return referencedBusinessEntityId; }
+  public void setReferencedBusinessEntityId(UUID referencedBusinessEntityId) { this.referencedBusinessEntityId = referencedBusinessEntityId; }
 }

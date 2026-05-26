@@ -18,6 +18,8 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 class DynamicSchemaServiceTest {
   private static final String CREATE_STUDENTS_TABLE =
       "CREATE TABLE IF NOT EXISTS \"students\" (id UUID PRIMARY KEY)";
+  private static final String CREATE_ACTIVITIES_TABLE =
+      "CREATE TABLE IF NOT EXISTS \"activities\" (id UUID PRIMARY KEY)";
 
   private RecordingJdbcTemplate jdbc;
   private DynamicSchemaService service;
@@ -135,6 +137,32 @@ class DynamicSchemaServiceTest {
   }
 
   @Test
+  void addRelationshipColumnCreatesForeignKeyAndUniqueConstraintWhenNeeded() {
+    registerStudentsAndActivitiesTables();
+
+    service.addRelationshipColumn("Students", "activityId", "Activities", "many_to_one");
+    service.addRelationshipColumn("Students", "mentorId", "Activities", "one_to_one");
+
+    assertThat(jdbc.executedSql()).contains(
+        "ALTER TABLE \"students\" ADD COLUMN IF NOT EXISTS \"activityid\" UUID",
+        "ALTER TABLE \"students\" ADD CONSTRAINT \"fk_students_activityid\" FOREIGN KEY (\"activityid\") REFERENCES \"activities\"(id)",
+        "ALTER TABLE \"students\" ADD COLUMN IF NOT EXISTS \"mentorid\" UUID",
+        "ALTER TABLE \"students\" ADD CONSTRAINT \"fk_students_mentorid\" FOREIGN KEY (\"mentorid\") REFERENCES \"activities\"(id)",
+        "ALTER TABLE \"students\" ADD CONSTRAINT \"uk_students_mentorid\" UNIQUE (\"mentorid\")"
+    );
+  }
+
+  @Test
+  void addRelationshipColumnRejectsInvalidInputs() {
+    registerStudentsTable();
+
+    assertThrows(IllegalArgumentException.class, () -> service.addRelationshipColumn(null, "activityId", "Activities", "many_to_one"));
+    assertThrows(IllegalArgumentException.class, () -> service.addRelationshipColumn("Students", null, "Activities", "many_to_one"));
+    assertThrows(IllegalArgumentException.class, () -> service.addRelationshipColumn("Students", "activityId", null, "many_to_one"));
+    assertThrows(IllegalArgumentException.class, () -> service.addRelationshipColumn("Students", "activityId", "Activities", "many"));
+  }
+
+  @Test
   void dropColumnCreatesAlterTableStatement() {
     registerStudentsTable();
 
@@ -181,12 +209,20 @@ class DynamicSchemaServiceTest {
         Arguments.of("string", "VARCHAR(255)"),
         Arguments.of("number", "NUMERIC"),
         Arguments.of("boolean", "BOOLEAN"),
-        Arguments.of("date", "DATE")
+        Arguments.of("date", "DATE"),
+        Arguments.of("relationship", "UUID")
     );
   }
 
   private void registerStudentsTable() {
     service.executeStatements(Map.of("Students", CREATE_STUDENTS_TABLE));
+  }
+
+  private void registerStudentsAndActivitiesTables() {
+    Map<String, String> statements = new LinkedHashMap<>();
+    statements.put("Students", CREATE_STUDENTS_TABLE);
+    statements.put("Activities", CREATE_ACTIVITIES_TABLE);
+    service.executeStatements(statements);
   }
 
   private Map<String, String> singleEntryMap(String key, String value) {

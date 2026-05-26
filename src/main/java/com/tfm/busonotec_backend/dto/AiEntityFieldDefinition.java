@@ -18,7 +18,7 @@ public record AiEntityFieldDefinition(
     @Schema(
         description = "Tipo logico del campo mapeado a un tipo de columna en base de datos.",
         example = "number",
-        allowableValues = {"string", "number", "boolean", "date"},
+        allowableValues = {"string", "number", "boolean", "date", "relationship"},
         requiredMode = Schema.RequiredMode.REQUIRED
     )
     String type,
@@ -42,9 +42,34 @@ public record AiEntityFieldDefinition(
     LocalDate minDate,
 
     @Schema(description = "Fecha maxima para campos date. Debe ser null para otros tipos.", example = "2026-12-31", format = "date")
-    LocalDate maxDate
+    LocalDate maxDate,
+
+    @Schema(
+        description = "Cardinalidad de la relacion cuando type es relationship. Debe ser null para otros tipos.",
+        example = "many_to_one",
+        allowableValues = {"many_to_one", "one_to_one"}
+    )
+    String relationshipType,
+
+    @Schema(
+        description = "Nombre de la entidad de negocio destino cuando type es relationship. Debe existir en businessEntities y ser null para otros tipos.",
+        example = "Actividades"
+    )
+    String referencedEntityName
 ) {
   public AiEntityFieldDefinition(String name, String type) {
-    this(name, type, null, null, null, null, null, null, null);
+    this(name, type, null, null, null, null, null, null, null, null, null);
+  }
+
+  public AiEntityFieldDefinition(String name,
+                                 String type,
+                                 Boolean required,
+                                 Integer minLength,
+                                 Integer maxLength,
+                                 BigDecimal minValue,
+                                 BigDecimal maxValue,
+                                 LocalDate minDate,
+                                 LocalDate maxDate) {
+    this(name, type, required, minLength, maxLength, minValue, maxValue, minDate, maxDate, null, null);
   }
 }

@@ -5,7 +5,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 
 import java.util.List;
 
-@Schema(description = "Definicion de entidad de negocio generada por IA lista para convertirse en metadata, tabla y columnas.")
+@Schema(description = "Definicion de entidad de negocio generada por IA lista para convertirse en metadata, tabla, columnas y relaciones normalizadas.")
 public record AiBusinessEntityDefinition(
     @Schema(
         description = "Nombre de la entidad de negocio en espanol. Debe iniciar con una letra y puede contener letras, numeros y guiones bajos.",

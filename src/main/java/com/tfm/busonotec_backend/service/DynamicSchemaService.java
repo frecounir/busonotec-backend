@@ -65,6 +65,38 @@ public class DynamicSchemaService {
     jdbc.execute(sql);
   }
 
+  public void addRelationshipColumn(String entityName, String fieldName, String referencedEntityName, String relationshipType) {
+    validateIdentifier(entityName, "entity name");
+    validateIdentifier(fieldName, "field name");
+    validateIdentifier(referencedEntityName, "referenced entity name");
+    validateRelationshipType(relationshipType);
+    if (!entityExists(entityName)) {
+      throw new IllegalArgumentException("Physical table does not exist for entity: " + entityName);
+    }
+    if (!entityExists(referencedEntityName)) {
+      throw new IllegalArgumentException("Physical table does not exist for referenced entity: " + referencedEntityName);
+    }
+
+    String addColumnSql = "ALTER TABLE " + quote(entityName)
+        + " ADD COLUMN IF NOT EXISTS " + quote(fieldName)
+        + " UUID";
+    String foreignKeySql = "ALTER TABLE " + quote(entityName)
+        + " ADD CONSTRAINT " + quote(constraintName("fk", entityName, fieldName))
+        + " FOREIGN KEY (" + quote(fieldName) + ") REFERENCES " + quote(referencedEntityName) + "(id)";
+    log.info("Adding relationship column {}.{} with SQL: {}", entityName, fieldName, addColumnSql);
+    jdbc.execute(addColumnSql);
+    log.info("Adding relationship constraint {}.{} -> {} with SQL: {}", entityName, fieldName, referencedEntityName, foreignKeySql);
+    jdbc.execute(foreignKeySql);
+
+    if ("one_to_one".equals(relationshipType.toLowerCase(Locale.ROOT))) {
+      String uniqueSql = "ALTER TABLE " + quote(entityName)
+          + " ADD CONSTRAINT " + quote(constraintName("uk", entityName, fieldName))
+          + " UNIQUE (" + quote(fieldName) + ")";
+      log.info("Adding one-to-one uniqueness constraint {}.{} with SQL: {}", entityName, fieldName, uniqueSql);
+      jdbc.execute(uniqueSql);
+    }
+  }
+
   public void dropColumn(String entityName, String fieldName) {
     validateIdentifier(entityName, "entity name");
     validateIdentifier(fieldName, "field name");
@@ -135,7 +167,28 @@ public class DynamicSchemaService {
       case "number" -> "NUMERIC";
       case "boolean" -> "BOOLEAN";
       case "date" -> "DATE";
+      case "relationship" -> "UUID";
       default -> throw new IllegalArgumentException("Unsupported field type: " + logicalType);
     };
+  }
+
+  private void validateRelationshipType(String relationshipType) {
+    if (relationshipType == null || relationshipType.isBlank()) {
+      throw new IllegalArgumentException("Relationship type must be provided");
+    }
+    String normalized = relationshipType.toLowerCase(Locale.ROOT);
+    if (!("many_to_one".equals(normalized) || "one_to_one".equals(normalized))) {
+      throw new IllegalArgumentException("Unsupported relationship type: " + relationshipType);
+    }
+  }
+
+  private String constraintName(String prefix, String entityName, String fieldName) {
+    String value = prefix + "_" + entityName.toLowerCase(Locale.ROOT) + "_" + fieldName.toLowerCase(Locale.ROOT);
+    if (value.length() <= 63) {
+      return value;
+    }
+    String hash = Integer.toHexString(value.hashCode());
+    int prefixLength = 63 - hash.length() - 1;
+    return value.substring(0, prefixLength) + "_" + hash;
   }
 }

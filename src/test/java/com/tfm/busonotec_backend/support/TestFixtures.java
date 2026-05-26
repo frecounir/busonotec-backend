@@ -48,6 +48,16 @@ public final class TestFixtures {
     return new EntityField(id, name, type, entityId, null, required, minLength, maxLength, minValue, maxValue, minDate, maxDate);
   }
 
+  public static EntityField relationshipField(
+      UUID id,
+      UUID entityId,
+      String name,
+      String relationshipType,
+      UUID referencedBusinessEntityId
+  ) {
+    return new EntityField(id, name, "relationship", entityId, null, false, null, null, null, null, null, null, relationshipType, referencedBusinessEntityId);
+  }
+
   public static EntityFieldRequest entityFieldRequest(UUID entityId, String name, String type) {
     return new EntityFieldRequest(entityId, name, type);
   }
@@ -65,6 +75,15 @@ public final class TestFixtures {
       LocalDate maxDate
   ) {
     return new EntityFieldRequest(entityId, name, type, required, minLength, maxLength, minValue, maxValue, minDate, maxDate);
+  }
+
+  public static EntityFieldRequest relationshipFieldRequest(
+      UUID entityId,
+      String name,
+      String relationshipType,
+      UUID referencedBusinessEntityId
+  ) {
+    return new EntityFieldRequest(entityId, name, "relationship", null, null, null, null, null, null, null, relationshipType, referencedBusinessEntityId);
   }
 
   public static String uniqueEntityName(String prefix) {

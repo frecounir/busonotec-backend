@@ -16,6 +16,7 @@ import java.util.UUID;
 
 import static com.tfm.busonotec_backend.support.TestFixtures.STUDENTS;
 import static com.tfm.busonotec_backend.support.TestFixtures.entityField;
+import static com.tfm.busonotec_backend.support.TestFixtures.relationshipField;
 import static com.tfm.busonotec_backend.support.TestFixtures.studentsEntity;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -127,6 +128,18 @@ class BusinessRecordServiceTest {
   }
 
   @Test
+  void createConvertsRelationshipFieldStringsToUuid() {
+    prepareStudentsEntity();
+    UUID activitiesId = UUID.randomUUID();
+    UUID activityRecordId = UUID.randomUUID();
+    fieldRepository.add(relationshipField(UUID.randomUUID(), entityId, "activityId", "many_to_one", activitiesId));
+
+    Map<String, Object> record = service.create(entityId, Map.of("activityId", activityRecordId.toString()));
+
+    assertThat(record).containsEntry("activityid", activityRecordId);
+  }
+
+  @Test
   void createRejectsMissingRecordBody() {
     entityRepository.add(studentsEntity(entityId));
     schemaService.markEntityAsExisting(STUDENTS);
@@ -162,6 +175,21 @@ class BusinessRecordServiceTest {
     assertThat(assertThrows(IllegalArgumentException.class,
         () -> service.create(entityId, Map.of("enrollmentDate", 20260519))))
         .hasMessage("Invalid date value for field enrollmentdate. Expected format: yyyy-MM-dd");
+    assertThat(recordRepository.createdEntityNames()).isEmpty();
+  }
+
+  @Test
+  void createRejectsInvalidRelationshipFieldValues() {
+    prepareStudentsEntity();
+    UUID activitiesId = UUID.randomUUID();
+    fieldRepository.add(relationshipField(UUID.randomUUID(), entityId, "activityId", "many_to_one", activitiesId));
+
+    assertThat(assertThrows(IllegalArgumentException.class,
+        () -> service.create(entityId, Map.of("activityId", "not-a-uuid"))))
+        .hasMessage("Invalid relationship value for field activityId. Expected UUID");
+    assertThat(assertThrows(IllegalArgumentException.class,
+        () -> service.create(entityId, Map.of("activityId", 123))))
+        .hasMessage("Invalid relationship value for field activityId. Expected UUID");
     assertThat(recordRepository.createdEntityNames()).isEmpty();
   }
 

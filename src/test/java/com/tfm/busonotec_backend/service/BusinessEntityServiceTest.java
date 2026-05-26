@@ -19,6 +19,7 @@ import static com.tfm.busonotec_backend.support.TestFixtures.STUDENT_DESCRIPTION
 import static com.tfm.busonotec_backend.support.TestFixtures.businessEntity;
 import static com.tfm.busonotec_backend.support.TestFixtures.businessEntityRequest;
 import static com.tfm.busonotec_backend.support.TestFixtures.entityField;
+import static com.tfm.busonotec_backend.support.TestFixtures.relationshipField;
 import static com.tfm.busonotec_backend.support.TestFixtures.studentsEntity;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -146,6 +147,25 @@ class BusinessEntityServiceTest {
 
     assertThat(exception).hasMessage("Business entity not found: " + id);
     assertThat(schemaService.droppedEntities()).isEmpty();
+  }
+
+  @Test
+  void deleteRemovesIncomingRelationshipFieldsBeforeDeletingEntity() {
+    UUID studentsId = UUID.randomUUID();
+    UUID activitiesId = UUID.randomUUID();
+    UUID relationshipFieldId = UUID.randomUUID();
+    repository.add(studentsEntity(studentsId));
+    repository.add(businessEntity(activitiesId, "Activities", "Activity records"));
+    fieldRepository.add(relationshipField(relationshipFieldId, studentsId, "activityId", "many_to_one", activitiesId));
+    schemaService.markEntityAsExisting(STUDENTS);
+
+    service.delete(activitiesId);
+
+    assertThat(repository.findById(activitiesId)).isEmpty();
+    assertThat(fieldRepository.findById(relationshipFieldId)).isEmpty();
+    assertThat(schemaService.droppedColumns())
+        .containsExactly(new RecordingDynamicSchemaService.DroppedColumn(STUDENTS, "activityId"));
+    assertThat(schemaService.droppedEntities()).containsExactly("Activities");
   }
 
   static Stream<String> invalidEntityNames() {

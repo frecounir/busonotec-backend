@@ -38,7 +38,9 @@ public class DatabaseSeeder {
           min_value NUMERIC,
           max_value NUMERIC,
           min_date DATE,
-          max_date DATE
+          max_date DATE,
+          relationship_type TEXT,
+          referenced_business_entity_id UUID
         )
         """);
 
@@ -49,6 +51,8 @@ public class DatabaseSeeder {
     jdbc.execute("ALTER TABLE entity_fields ADD COLUMN IF NOT EXISTS max_value NUMERIC");
     jdbc.execute("ALTER TABLE entity_fields ADD COLUMN IF NOT EXISTS min_date DATE");
     jdbc.execute("ALTER TABLE entity_fields ADD COLUMN IF NOT EXISTS max_date DATE");
+    jdbc.execute("ALTER TABLE entity_fields ADD COLUMN IF NOT EXISTS relationship_type TEXT");
+    jdbc.execute("ALTER TABLE entity_fields ADD COLUMN IF NOT EXISTS referenced_business_entity_id UUID");
 
     log.info("Ensured base metadata tables exist");
   }
