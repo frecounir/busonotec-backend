@@ -1,30 +1,22 @@
 package com.tfm.busonotec_backend.domain;
 
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+
 import java.util.UUID;
 
 /**
  * Core domain: BusinessEntity represents a logical entity in the system.
  * It is framework-agnostic and keeps only domain concerns.
  */
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
 public class BusinessEntity {
   private UUID id;
   private String name;
   private String description;
-
-  public BusinessEntity() {}
-
-  public BusinessEntity(UUID id, String name, String description) {
-    this.id = id;
-    this.name = name;
-    this.description = description;
-  }
-
-  public UUID getId() { return id; }
-  public void setId(UUID id) { this.id = id; }
-
-  public String getName() { return name; }
-  public void setName(String name) { this.name = name; }
-
-  public String getDescription() { return description; }
-  public void setDescription(String description) { this.description = description; }
 }

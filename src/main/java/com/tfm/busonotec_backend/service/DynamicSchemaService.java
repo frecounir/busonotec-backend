@@ -1,26 +1,31 @@
 package com.tfm.busonotec_backend.service;
 
+import com.tfm.busonotec_backend.domain.FieldType;
+import com.tfm.busonotec_backend.domain.RelationshipType;
+import com.tfm.busonotec_backend.util.IdentifierValidator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 
+import java.util.Collections;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.Set;
-import java.util.Collections;
-import java.util.regex.Pattern;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Service
 public class DynamicSchemaService {
   private static final Logger log = LoggerFactory.getLogger(DynamicSchemaService.class);
-  private static final Pattern NAME = Pattern.compile("^[a-zA-Z][a-zA-Z0-9_]{0,62}$");
   private final JdbcTemplate jdbc;
   private final Set<String> createdEntities = ConcurrentHashMap.newKeySet();
 
   public DynamicSchemaService(JdbcTemplate jdbc) { this.jdbc = jdbc; }
+
+  public void createEntityTable(String entityName) {
+    executeStatements(Collections.singletonMap(entityName, createEntityTableSql(entityName)));
+  }
 
   /** Execute schema creation statements mapped by entity name. Validates SQL before execution. */
   public void executeStatements(Map<String, String> statementsByEntity) {
@@ -38,10 +43,10 @@ public class DynamicSchemaService {
   }
 
   public boolean entityExists(String entityName) {
-    if (entityName == null || !NAME.matcher(entityName).matches()) {
+    if (!IdentifierValidator.isValid(entityName)) {
       return false;
     }
-    if (createdEntities.contains(entityName.toLowerCase())) {
+    if (createdEntities.contains(entityName.toLowerCase(Locale.ROOT))) {
       return true;
     }
     Integer count = jdbc.queryForObject(
@@ -88,7 +93,7 @@ public class DynamicSchemaService {
     log.info("Adding relationship constraint {}.{} -> {} with SQL: {}", entityName, fieldName, referencedEntityName, foreignKeySql);
     jdbc.execute(foreignKeySql);
 
-    if ("one_to_one".equals(relationshipType.toLowerCase(Locale.ROOT))) {
+    if (RelationshipType.ONE_TO_ONE.value().equals(RelationshipType.normalize(relationshipType))) {
       String uniqueSql = "ALTER TABLE " + quote(entityName)
           + " ADD CONSTRAINT " + quote(constraintName("uk", entityName, fieldName))
           + " UNIQUE (" + quote(fieldName) + ")";
@@ -146,29 +151,28 @@ public class DynamicSchemaService {
   public Set<String> getCreatedEntities() { return Collections.unmodifiableSet(createdEntities); }
 
   private void validateIdentifier(String value, String label) {
-    if (value == null || value.isBlank()) {
-      throw new IllegalArgumentException(label + " must be provided");
-    }
-    if (!NAME.matcher(value).matches()) {
-      throw new IllegalArgumentException("Invalid " + label + ": " + value);
-    }
+    IdentifierValidator.requireValid(value, label, label);
   }
 
   private String quote(String identifier) {
     return "\"" + identifier.toLowerCase(Locale.ROOT) + "\"";
   }
 
+  private String createEntityTableSql(String entityName) {
+    validateIdentifier(entityName, "entity name");
+    return "CREATE TABLE IF NOT EXISTS " + quote(entityName) + " (id UUID PRIMARY KEY)";
+  }
+
   private String mapColumnType(String logicalType) {
     if (logicalType == null || logicalType.isBlank()) {
       throw new IllegalArgumentException("Field type must be provided");
     }
-    return switch (logicalType.toLowerCase(Locale.ROOT)) {
-      case "string" -> "VARCHAR(255)";
-      case "number" -> "NUMERIC";
-      case "boolean" -> "BOOLEAN";
-      case "date" -> "DATE";
-      case "relationship" -> "UUID";
-      default -> throw new IllegalArgumentException("Unsupported field type: " + logicalType);
+    return switch (FieldType.requireSupported(logicalType, "Unsupported field type: ")) {
+      case STRING -> "VARCHAR(255)";
+      case NUMBER -> "NUMERIC";
+      case BOOLEAN -> "BOOLEAN";
+      case DATE -> "DATE";
+      case RELATIONSHIP -> "UUID";
     };
   }
 
@@ -176,8 +180,7 @@ public class DynamicSchemaService {
     if (relationshipType == null || relationshipType.isBlank()) {
       throw new IllegalArgumentException("Relationship type must be provided");
     }
-    String normalized = relationshipType.toLowerCase(Locale.ROOT);
-    if (!("many_to_one".equals(normalized) || "one_to_one".equals(normalized))) {
+    if (RelationshipType.from(relationshipType).isEmpty()) {
       throw new IllegalArgumentException("Unsupported relationship type: " + relationshipType);
     }
   }

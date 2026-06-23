@@ -1,6 +1,10 @@
 package com.tfm.busonotec_backend.dto;
 
 import io.swagger.v3.oas.annotations.media.Schema;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -9,6 +13,10 @@ import java.util.UUID;
 /**
  * DTO returned after creating or listing fields.
  */
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
 @Schema(description = "Dynamic entity field metadata returned by the API.")
 public class EntityFieldResponse {
   @Schema(
@@ -71,8 +79,6 @@ public class EntityFieldResponse {
   )
   private UUID referencedBusinessEntityId;
 
-  public EntityFieldResponse() {}
-
   public EntityFieldResponse(UUID id, UUID businessEntityId, String name, String type) {
     this(id, businessEntityId, name, type, false, null, null, null, null, null, null);
   }
@@ -90,71 +96,4 @@ public class EntityFieldResponse {
                              LocalDate maxDate) {
     this(id, businessEntityId, name, type, required, minLength, maxLength, minValue, maxValue, minDate, maxDate, null, null);
   }
-
-  public EntityFieldResponse(UUID id,
-                             UUID businessEntityId,
-                             String name,
-                             String type,
-                             boolean required,
-                             Integer minLength,
-                             Integer maxLength,
-                             BigDecimal minValue,
-                             BigDecimal maxValue,
-                             LocalDate minDate,
-                             LocalDate maxDate,
-                             String relationshipType,
-                             UUID referencedBusinessEntityId) {
-    this.id = id;
-    this.businessEntityId = businessEntityId;
-    this.name = name;
-    this.type = type;
-    this.required = required;
-    this.minLength = minLength;
-    this.maxLength = maxLength;
-    this.minValue = minValue;
-    this.maxValue = maxValue;
-    this.minDate = minDate;
-    this.maxDate = maxDate;
-    this.relationshipType = relationshipType;
-    this.referencedBusinessEntityId = referencedBusinessEntityId;
-  }
-
-  public UUID getId() { return id; }
-  public void setId(UUID id) { this.id = id; }
-
-  public UUID getBusinessEntityId() { return businessEntityId; }
-  public void setBusinessEntityId(UUID businessEntityId) { this.businessEntityId = businessEntityId; }
-
-  public String getName() { return name; }
-  public void setName(String name) { this.name = name; }
-
-  public String getType() { return type; }
-  public void setType(String type) { this.type = type; }
-
-  public boolean isRequired() { return required; }
-  public void setRequired(boolean required) { this.required = required; }
-
-  public Integer getMinLength() { return minLength; }
-  public void setMinLength(Integer minLength) { this.minLength = minLength; }
-
-  public Integer getMaxLength() { return maxLength; }
-  public void setMaxLength(Integer maxLength) { this.maxLength = maxLength; }
-
-  public BigDecimal getMinValue() { return minValue; }
-  public void setMinValue(BigDecimal minValue) { this.minValue = minValue; }
-
-  public BigDecimal getMaxValue() { return maxValue; }
-  public void setMaxValue(BigDecimal maxValue) { this.maxValue = maxValue; }
-
-  public LocalDate getMinDate() { return minDate; }
-  public void setMinDate(LocalDate minDate) { this.minDate = minDate; }
-
-  public LocalDate getMaxDate() { return maxDate; }
-  public void setMaxDate(LocalDate maxDate) { this.maxDate = maxDate; }
-
-  public String getRelationshipType() { return relationshipType; }
-  public void setRelationshipType(String relationshipType) { this.relationshipType = relationshipType; }
-
-  public UUID getReferencedBusinessEntityId() { return referencedBusinessEntityId; }
-  public void setReferencedBusinessEntityId(UUID referencedBusinessEntityId) { this.referencedBusinessEntityId = referencedBusinessEntityId; }
 }

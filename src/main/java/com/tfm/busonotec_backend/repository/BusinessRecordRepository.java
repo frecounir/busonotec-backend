@@ -1,5 +1,6 @@
 package com.tfm.busonotec_backend.repository;
 
+import com.tfm.busonotec_backend.util.IdentifierValidator;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 
@@ -11,12 +12,9 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.stream.Collectors;
-import java.util.regex.Pattern;
 
 @Repository
 public class BusinessRecordRepository {
-  private static final Pattern NAME = Pattern.compile("^[a-zA-Z][a-zA-Z0-9_]{0,62}$");
-
   private final JdbcTemplate jdbc;
 
   public BusinessRecordRepository(JdbcTemplate jdbc) {
@@ -102,21 +100,11 @@ public class BusinessRecordRepository {
   }
 
   private void validateEntityName(String entityName) {
-    if (entityName == null || entityName.isBlank()) {
-      throw new IllegalArgumentException("Entity name must be provided");
-    }
-    if (!NAME.matcher(entityName).matches()) {
-      throw new IllegalArgumentException("Invalid entity name: " + entityName);
-    }
+    IdentifierValidator.requireValid(entityName, "Entity name", "entity name");
   }
 
   private void validateColumnName(String columnName) {
-    if (columnName == null || columnName.isBlank()) {
-      throw new IllegalArgumentException("Column name must be provided");
-    }
-    if (!NAME.matcher(columnName).matches()) {
-      throw new IllegalArgumentException("Invalid column name: " + columnName);
-    }
+    IdentifierValidator.requireValid(columnName, "Column name", "column name");
   }
 
   private String quote(String identifier) {

@@ -3,6 +3,7 @@ package com.tfm.busonotec_backend.dto;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;
+import lombok.Getter;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -11,6 +12,7 @@ import java.util.UUID;
 /**
  * DTO to create an EntityField.
  */
+@Getter
 @Schema(description = "Payload used to create a dynamic field, relationship metadata, and physical table column.")
 public class EntityFieldRequest {
   @Schema(
@@ -117,17 +119,4 @@ public class EntityFieldRequest {
     this.relationshipType = relationshipType;
     this.referencedBusinessEntityId = referencedBusinessEntityId;
   }
-
-  public UUID getBusinessEntityId() { return businessEntityId; }
-  public String getName() { return name; }
-  public String getType() { return type; }
-  public Boolean getRequired() { return required; }
-  public Integer getMinLength() { return minLength; }
-  public Integer getMaxLength() { return maxLength; }
-  public BigDecimal getMinValue() { return minValue; }
-  public BigDecimal getMaxValue() { return maxValue; }
-  public LocalDate getMinDate() { return minDate; }
-  public LocalDate getMaxDate() { return maxDate; }
-  public String getRelationshipType() { return relationshipType; }
-  public UUID getReferencedBusinessEntityId() { return referencedBusinessEntityId; }
 }

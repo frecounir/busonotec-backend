@@ -3,10 +3,12 @@ package com.tfm.busonotec_backend.dto;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;
+import lombok.Getter;
 
 /**
  * DTO for creating a BusinessEntity.
  */
+@Getter
 @Schema(description = "Payload used to create a logical business entity and its physical table.")
 public class BusinessEntityRequest {
   @Schema(
@@ -31,7 +33,4 @@ public class BusinessEntityRequest {
     this.name = name;
     this.description = description;
   }
-
-  public String getName() { return name; }
-  public String getDescription() { return description; }
 }

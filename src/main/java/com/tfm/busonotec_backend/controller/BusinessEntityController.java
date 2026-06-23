@@ -27,7 +27,9 @@ import java.util.UUID;
 public class BusinessEntityController {
   private final BusinessEntityService service;
 
-  public BusinessEntityController(BusinessEntityService service) { this.service = service; }
+  public BusinessEntityController(BusinessEntityService service) {
+      this.service = service;
+  }
 
   @Operation(
       summary = "Create a business entity",
