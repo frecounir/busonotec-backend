@@ -1,0 +1,11 @@
+.git
+.gitignore
+.gitattributes
+.idea
+.DS_Store
+target
+*.log
+
+Dockerfile
+compose.yml
+README*
